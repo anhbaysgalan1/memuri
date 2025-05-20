@@ -66,6 +66,20 @@ class Document(BaseModel):
         default_factory=dict,
         description="Arbitrary metadata associated with the document"
     )
+    embedding: Optional[List[float]] = Field(None, description="Vector embedding of the document content")
+
+
+class DocumentChunk(BaseModel):
+    """Represents a chunk of a document in the memory system."""
+    
+    id: str = Field(..., description="Unique identifier for the chunk")
+    document_id: str = Field(..., description="ID of the parent document")
+    content: str = Field(..., description="Content of the chunk")
+    embedding: Optional[List[float]] = Field(None, description="Vector embedding of the chunk content")
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Arbitrary metadata associated with the chunk"
+    )
 
 
 class MemoryCategory(str, Enum):
@@ -77,6 +91,7 @@ class MemoryCategory(str, Enum):
     EMOTION = "EMOTION"
     DECISION = "DECISION"
     TODO = "TODO"
+    FACT = "FACT"
     GENERAL = "GENERAL"
 
 

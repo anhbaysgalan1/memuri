@@ -1,6 +1,6 @@
 """Chat utilities for the memuri SDK."""
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, AsyncIterator, Dict, List, Optional, Union
 
 from memuri.domain.models import ChatMessage, Memory, MessageRole, SearchResult
 from memuri.sdk.client import Memuri

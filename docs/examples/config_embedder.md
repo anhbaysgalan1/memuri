@@ -16,7 +16,7 @@ config = {
     "embedder": {
         "provider": "openai",
         "config": {
-            "model": "text-embedding-ada-002",
+            "model": "text-embedding-3-small",
         }
     }
 }
@@ -169,7 +169,7 @@ config = {
     "embedder": {
         "provider": "openai",
         "config": {
-            "model": "text-embedding-ada-002",
+            "model": "text-embedding-3-small",
         }
     }
 }
@@ -204,7 +204,7 @@ config = {
     "embedder": {
         "provider": "openai",
         "config": {
-            "model": "text-embedding-ada-002",
+            "model": "text-embedding-3-small",
             "api_key": "your_openai_api_key"
         }
     },
@@ -243,7 +243,7 @@ config = {
     "embedder": {
         "provider": "openai",
         "config": {
-            "model": "text-embedding-ada-002",
+            "model": "text-embedding-3-small",
             "api_key": "your_api_key",
             "base_url": "https://api.openai.com/v1",  # Custom base URL if needed
             "embedding_dims": 1536,

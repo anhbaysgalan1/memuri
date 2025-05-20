@@ -1,0 +1,17 @@
+{
+  "timestamp": "2025-05-20T18:11:16.343298",
+  "test_type": "search",
+  "iterations": 10,
+  "database_url": "postgresql://memuri:memuri@localhost:5432/memuri",
+  "embedding_model": "text-embedding-3-small",
+  "tests": {
+    "search_memory": {
+      "min": 466.1741256713867,
+      "max": 1462.0730876922607,
+      "mean": 761.5577936172485,
+      "median": 563.0947351455688,
+      "count": 10,
+      "stdev": 375.79567795257805
+    }
+  }
+}

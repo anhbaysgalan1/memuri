@@ -14,11 +14,21 @@ Memuri is a pip-installable SDK for high-performance, pluggable conversational m
 - **Flexible Configuration**: Easy configuration with environment variables, dictionary-based config, or direct settings
 - **Multiple Embedding Providers**: Support for OpenAI, Google Gemini, Azure, and Sentence Transformers
 
-## Getting Started
+## Installation
+
+You can install Memuri directly from PyPI:
 
 ```bash
 pip install memuri
 ```
+
+Or using Poetry:
+
+```bash
+poetry add memuri
+```
+
+## Getting Started
 
 ### Basic Usage
 
@@ -50,7 +60,7 @@ config = {
     "embedder": {
         "provider": "openai",
         "config": {
-            "model": "text-embedding-ada-002"
+            "model": "text-embedding-3-small"
         }
     }
 }
@@ -82,10 +92,109 @@ Memuri is designed around a layered memory system:
 3. **Memory Triggers**: Category classifiers and rule engine for contextual decisions
 4. **Feedback Loop**: Continuous adaptation based on user interactions
 
+## Performance Testing
+
+Memuri includes a comprehensive latency testing framework to measure performance metrics:
+
+### Using the Latency Test Script
+
+```bash
+# Run all tests with default settings
+cd src/memuri/tests
+./run_latency_tests.py
+
+# Run only add memory tests with 20 iterations
+./run_latency_tests.py --test-type add --iterations 20
+
+# Run only search tests with custom database URL
+./run_latency_tests.py --test-type search --db-url postgresql://user:pass@localhost:5432/mydb
+
+# Set log level to DEBUG for more detailed output
+./run_latency_tests.py --log-level DEBUG
+
+# Don't save results to a file
+./run_latency_tests.py --no-save
+```
+
+### Test Output
+
+The test runner will output detailed statistics for each operation:
+
+```
+=== Add Memory Benchmark Results ===
+Total operations: 10
+Mean latency: 831.96ms
+Median latency: 990.54ms
+Min latency: 322.88ms
+Max latency: 1361.35ms
+95th percentile: 1273.73ms
+Standard deviation: 387.65ms
+==================================
+
+=== Search Memory Benchmark Results ===
+Total operations: 10
+Mean latency: 817.86ms
+Median latency: 804.20ms
+Min latency: 410.45ms
+Max latency: 1388.41ms
+95th percentile: 1283.28ms
+Standard deviation: 359.60ms
+==================================
+
+```
+
+### Programmatic Usage
+
+You can also use the LatencyBenchmark class in your own code:
+
+```python
+import asyncio
+from memuri import Memuri
+from memuri.tests.test_latency import LatencyBenchmark
+
+async def measure_performance():
+    client = Memuri()
+    benchmark = LatencyBenchmark("Custom Test")
+    
+    # Measure add_memory operation
+    for i in range(5):
+        await benchmark.measure_operation(
+            client.add_memory,
+            content=f"Test memory {i}",
+            category="FACT"
+        )
+    
+    # Print stats
+    benchmark.print_stats()
+    
+    # Get stats as dictionary
+    stats = benchmark.get_stats()
+    print(f"95th percentile latency: {stats['p95']:.2f}ms")
+
+asyncio.run(measure_performance())
+```
+
+## Development and Deployment
+
+### Publishing to PyPI
+
+The project includes a script to handle publishing to PyPI with automatic version management:
+
+```bash
+# From project root
+./scripts/upload_to_pypi.sh
+```
+
+This script will:
+1. Automatically increment version numbers (patch, minor, or major)
+2. Run tests before building
+3. Build and upload the package to PyPI
+4. Create git tags and commits for the release
+
 ## Next Steps
 
 - Check the [Quick Start](usage/quickstart.md) guide
 - Learn about [Configuration](usage/configuration.md) options
 - Explore [API Reference](api-reference/index.md) 
 - Learn advanced patterns with [Cookbooks](cookbooks/index.md)
-- View [Examples](examples/index.md) for complete solutions 
+- View [Examples](examples/index.md) for complete solutions

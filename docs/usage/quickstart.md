@@ -37,7 +37,7 @@ memory = Memuri(
     vector_store_connection="postgresql://postgres:postgres@localhost:5432/memuri",
     cache_connection="redis://localhost:6379/0",
     embedder="openai",  # Options: openai, google, sentence_transformers
-    embedder_model="text-embedding-ada-002",  # For OpenAI
+    embedder_model="text-embedding-3-small",  # For OpenAI
 )
 
 # Connect to services
@@ -60,7 +60,7 @@ config = {
     "embedder": {
         "provider": "openai",
         "config": {
-            "model": "text-embedding-ada-002"
+            "model": "text-embedding-3-small"
         }
     },
     "vector_store": {

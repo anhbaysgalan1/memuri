@@ -39,7 +39,7 @@ config = {
     "embedder": {
         "provider": "openai",
         "config": {
-            "model": "text-embedding-ada-002",
+            "model": "text-embedding-3-small",
             "api_key": "sk-your-api-key"
         }
     },
@@ -86,7 +86,7 @@ from memuri import Memuri
 # Set Memuri-specific API key environment variables
 os.environ["MEMURI_EMBEDDING__API_KEY"] = "sk-your-openai-key" 
 os.environ["MEMURI_EMBEDDING__PROVIDER"] = "openai"
-os.environ["MEMURI_EMBEDDING__MODEL_NAME"] = "text-embedding-ada-002"
+os.environ["MEMURI_EMBEDDING__MODEL_NAME"] = "text-embedding-3-small"
 
 memory = Memuri()
 ```
@@ -102,7 +102,7 @@ config = {
     "embedder": {
         "provider": "openai",
         "config": {
-            "model": "text-embedding-ada-002",
+            "model": "text-embedding-3-small",
             "api_key": "sk-your-openai-key",
             "base_url": "https://api.openai.com/v1"  # Optional custom base URL
         }
@@ -139,7 +139,7 @@ from memuri import Memuri, EmbeddingSettings, MemuriSettings
 # Create custom settings
 embedding_settings = EmbeddingSettings(
     provider="openai",
-    model_name="text-embedding-ada-002",
+    model_name="text-embedding-3-small",
     api_key="sk-your-openai-key"
 )
 
@@ -162,7 +162,7 @@ config = {
     "embedder": {
         "provider": "openai",
         "config": {
-            "model": "text-embedding-ada-002",  # or "text-embedding-3-small", "text-embedding-3-large"
+            "model": "text-embedding-3-small",  # or "text-embedding-3-small", "text-embedding-3-large"
             "api_key": "sk-your-openai-key",
             "embedding_dims": 1536,
             "batch_size": 32  # Process in batches for better performance
@@ -262,7 +262,7 @@ config = {
     "embedder": {
         "provider": "openai",
         "config": {
-            "model": "text-embedding-ada-002",
+            "model": "text-embedding-3-small",
             "api_key": "sk-your-openai-key",
             "batch_size": 32
         }
@@ -359,7 +359,7 @@ MEMURI_DATABASE__POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/memu
 MEMURI_REDIS__REDIS_URL=redis://localhost:6379/0
 OPENAI_API_KEY=sk-your-api-key
 MEMURI_EMBEDDING__PROVIDER=openai
-MEMURI_EMBEDDING__MODEL_NAME=text-embedding-ada-002
+MEMURI_EMBEDDING__MODEL_NAME=text-embedding-3-small
 ```
 
 Then simply:

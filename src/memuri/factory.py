@@ -1,7 +1,7 @@
 """Factory classes for dynamically loading providers."""
 
 import importlib
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union, cast
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union, cast, Protocol, runtime_checkable
 
 from memuri.core.config import EmbeddingSettings, LLMSettings, VectorStoreSettings, get_settings
 from memuri.core.logging import get_logger
@@ -11,6 +11,37 @@ logger = get_logger(__name__)
 
 # Type variable for provider classes
 T = TypeVar("T")
+
+
+@runtime_checkable
+class ClassifierServiceProtocol(Protocol):
+    """Protocol for classifier services."""
+    
+    async def classify(self, text: str) -> Dict[Any, float]:
+        """Classify text.
+        
+        Args:
+            text: Text to classify
+            
+        Returns:
+            Dict[Any, float]: Classification results with scores
+        """
+        ...
+
+
+@runtime_checkable
+class FeedbackServiceProtocol(Protocol):
+    """Protocol for feedback services."""
+    
+    async def log_feedback(self, text: str, category: Any, metadata: Optional[Dict[str, Any]] = None) -> None:
+        """Log feedback.
+        
+        Args:
+            text: Text to classify
+            category: Correct category
+            metadata: Optional metadata
+        """
+        ...
 
 
 class ProviderFactory:
@@ -191,22 +222,19 @@ class ClassifierFactory(ProviderFactory):
         "ml": "memuri.services.classifier.MLClassifier",
     }
     
-    base_class = object  # Replace with actual base class when implemented
+    base_class = ClassifierServiceProtocol
     
     @classmethod
-    def create(cls, provider: str = "keyword") -> Any:
+    def create(cls, provider: str = "keyword") -> ClassifierServiceProtocol:
         """Create a classifier service instance.
         
         Args:
             provider: Name of the provider
             
         Returns:
-            Any: An initialized classifier service
+            ClassifierServiceProtocol: An initialized classifier service
         """
-        # Get the provider class
         provider_class = cls.get_provider_class(provider)
-        
-        # Create and return an instance
         return provider_class()
 
 
@@ -214,13 +242,11 @@ class FeedbackServiceFactory:
     """Factory for creating feedback service instances."""
     
     @classmethod
-    def create(cls) -> Any:
+    def create(cls) -> FeedbackServiceProtocol:
         """Create a feedback service instance.
         
         Returns:
-            Any: An initialized feedback service
+            FeedbackServiceProtocol: An initialized feedback service
         """
-        from memuri.services.feedback import FeedbackService  # Lazy import
-        
-        # Create and return an instance
+        from memuri.services.feedback import FeedbackService
         return FeedbackService(settings=get_settings().feedback) 

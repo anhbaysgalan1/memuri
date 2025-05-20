@@ -15,7 +15,7 @@ memory = Memuri(
     vector_store="pgvector",
     vector_store_connection="postgresql://postgres:postgres@localhost:5432/memuri",
     embedder="openai",
-    embedder_model="text-embedding-ada-002"
+    embedder_model="text-embedding-3-small"
 )
 await memory.initialize()
 
@@ -415,7 +415,7 @@ class MemoryAugmentedRAG:
             vector_store="pgvector",
             vector_store_connection="postgresql://postgres:postgres@localhost:5432/memuri",
             embedder="openai",
-            embedder_model="text-embedding-ada-002"
+            embedder_model="text-embedding-3-small"
         )
         await self.memory.initialize()
         

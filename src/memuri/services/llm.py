@@ -1,33 +1,49 @@
-"""LLM service implementations for text generation."""
+"""LLM services for memuri."""
 
-import asyncio
-from typing import Any, AsyncGenerator, Dict, List, Optional, Union
+import os
+from typing import List, Optional, Dict, Any
 
 from openai import AsyncOpenAI
-import google.generativeai as genai
 
 from memuri.core.config import LLMSettings
 from memuri.core.logging import get_logger
-from memuri.core.telemetry import llm_request_duration, track_latency
-from memuri.domain.interfaces import LLMService
+from memuri.core.telemetry import track_latency
 from memuri.domain.models import ChatMessage, MessageRole
 
 logger = get_logger(__name__)
 
 
-class BaseLLMService:
-    """Base class for LLM services."""
+class OpenAILLMService:
+    """OpenAI LLM service."""
     
-    def __init__(self, settings: LLMSettings):
-        """Initialize the LLM service.
+    def __init__(self, settings: Optional[LLMSettings] = None):
+        """Initialize the OpenAI LLM service.
         
         Args:
-            settings: LLM settings
+            settings: Optional LLM settings
         """
-        self.settings = settings
-        logger.info(f"Initialized {self.__class__.__name__} with model {settings.model_name}")
+        # Use provided settings or create default
+        self.settings = settings or LLMSettings()
+        
+        # Get API key from settings or environment
+        api_key = self.settings.api_key or os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OpenAI API key is required")
+            
+        # Set up client
+        self.client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=self.settings.base_url,
+        )
+        
+        # Set model name and default parameters
+        self.model = self.settings.model_name
+        self.temperature = self.settings.temperature
+        self.max_tokens = self.settings.max_tokens
+        
+        logger.info(f"Initialized OpenAILLMService with model {self.model}")
     
-    @track_latency(llm_request_duration)
+    @track_latency()
     async def generate(
         self, 
         prompt: str,
@@ -46,7 +62,22 @@ class BaseLLMService:
         Returns:
             str: Generated text
         """
-        raise NotImplementedError("Subclasses must implement generate")
+        # Convert prompt to messages format
+        messages = [
+            {"role": "user", "content": prompt}
+        ]
+        
+        # Call OpenAI API
+        response = await self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            temperature=temperature or self.temperature,
+            max_tokens=max_tokens or self.max_tokens,
+            stop=stop_sequences,
+        )
+        
+        # Extract generated text
+        return response.choices[0].message.content
     
     async def generate_stream(
         self, 
@@ -54,7 +85,7 @@ class BaseLLMService:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         stop_sequences: Optional[List[str]] = None,
-    ) -> AsyncGenerator[str, None]:
+    ):
         """Generate text from a prompt as a stream.
         
         Args:
@@ -66,9 +97,27 @@ class BaseLLMService:
         Yields:
             str: Generated text chunks
         """
-        raise NotImplementedError("Subclasses must implement generate_stream")
+        # Convert prompt to messages format
+        messages = [
+            {"role": "user", "content": prompt}
+        ]
+        
+        # Call OpenAI API with streaming
+        response = await self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            temperature=temperature or self.temperature,
+            max_tokens=max_tokens or self.max_tokens,
+            stop=stop_sequences,
+            stream=True,
+        )
+        
+        # Yield chunks as they come in
+        async for chunk in response:
+            if chunk.choices and chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
     
-    @track_latency(llm_request_duration)
+    @track_latency()
     async def chat(
         self, 
         messages: List[ChatMessage],
@@ -87,7 +136,23 @@ class BaseLLMService:
         Returns:
             str: Generated response
         """
-        raise NotImplementedError("Subclasses must implement chat")
+        # Convert messages to OpenAI format
+        openai_messages = [
+            {"role": msg.role.value, "content": msg.content}
+            for msg in messages
+        ]
+        
+        # Call OpenAI API
+        response = await self.client.chat.completions.create(
+            model=self.model,
+            messages=openai_messages,
+            temperature=temperature or self.temperature,
+            max_tokens=max_tokens or self.max_tokens,
+            stop=stop_sequences,
+        )
+        
+        # Extract generated text
+        return response.choices[0].message.content
     
     async def chat_stream(
         self, 
@@ -95,7 +160,7 @@ class BaseLLMService:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         stop_sequences: Optional[List[str]] = None,
-    ) -> AsyncGenerator[str, None]:
+    ):
         """Generate a response in a chat conversation as a stream.
         
         Args:
@@ -107,195 +172,41 @@ class BaseLLMService:
         Yields:
             str: Generated response chunks
         """
-        raise NotImplementedError("Subclasses must implement chat_stream")
-
-
-class OpenAILLMService(BaseLLMService):
-    """OpenAI LLM service."""
-    
-    def __init__(self, settings: LLMSettings):
-        """Initialize the OpenAI LLM service.
+        # Convert messages to OpenAI format
+        openai_messages = [
+            {"role": msg.role.value, "content": msg.content}
+            for msg in messages
+        ]
         
-        Args:
-            settings: LLM settings
-        """
-        super().__init__(settings)
-        self.client = AsyncOpenAI()  # Assumes API key is in environment
-    
-    @track_latency(llm_request_duration, {"provider": "openai"})
-    async def generate(
-        self, 
-        prompt: str,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        stop_sequences: Optional[List[str]] = None,
-    ) -> str:
-        """Generate text from a prompt using OpenAI.
-        
-        Args:
-            prompt: Prompt to generate from
-            temperature: Sampling temperature
-            max_tokens: Maximum number of tokens to generate
-            stop_sequences: Sequences that should stop generation
-            
-        Returns:
-            str: Generated text
-        """
-        # Convert prompt to a single system message
-        messages = [{"role": "system", "content": prompt}]
-        
-        # Use settings if parameters not provided
-        temp = temperature if temperature is not None else self.settings.temperature
-        tokens = max_tokens if max_tokens is not None else self.settings.max_tokens
-        
+        # Call OpenAI API with streaming
         response = await self.client.chat.completions.create(
-            model=self.settings.model_name,
-            messages=messages,
-            temperature=temp,
-            max_tokens=tokens,
-            stop=stop_sequences,
-        )
-        
-        return response.choices[0].message.content or ""
-    
-    async def generate_stream(
-        self, 
-        prompt: str,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        stop_sequences: Optional[List[str]] = None,
-    ) -> AsyncGenerator[str, None]:
-        """Generate text from a prompt as a stream using OpenAI.
-        
-        Args:
-            prompt: Prompt to generate from
-            temperature: Sampling temperature
-            max_tokens: Maximum number of tokens to generate
-            stop_sequences: Sequences that should stop generation
-            
-        Yields:
-            str: Generated text chunks
-        """
-        # Convert prompt to a single system message
-        messages = [{"role": "system", "content": prompt}]
-        
-        # Use settings if parameters not provided
-        temp = temperature if temperature is not None else self.settings.temperature
-        tokens = max_tokens if max_tokens is not None else self.settings.max_tokens
-        
-        response = await self.client.chat.completions.create(
-            model=self.settings.model_name,
-            messages=messages,
-            temperature=temp,
-            max_tokens=tokens,
+            model=self.model,
+            messages=openai_messages,
+            temperature=temperature or self.temperature,
+            max_tokens=max_tokens or self.max_tokens,
             stop=stop_sequences,
             stream=True,
         )
         
+        # Yield chunks as they come in
         async for chunk in response:
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
+                
+                
+class GoogleLLMService:
+    """Google Gemini LLM service stub."""
     
-    @track_latency(llm_request_duration, {"provider": "openai"})
-    async def chat(
-        self, 
-        messages: List[ChatMessage],
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        stop_sequences: Optional[List[str]] = None,
-    ) -> str:
-        """Generate a response in a chat conversation using OpenAI.
-        
-        Args:
-            messages: Chat history
-            temperature: Sampling temperature
-            max_tokens: Maximum number of tokens to generate
-            stop_sequences: Sequences that should stop generation
-            
-        Returns:
-            str: Generated response
-        """
-        # Convert our ChatMessage objects to OpenAI format
-        openai_messages = [
-            {
-                "role": message.role.value,
-                "content": message.content,
-            }
-            for message in messages
-        ]
-        
-        # Use settings if parameters not provided
-        temp = temperature if temperature is not None else self.settings.temperature
-        tokens = max_tokens if max_tokens is not None else self.settings.max_tokens
-        
-        response = await self.client.chat.completions.create(
-            model=self.settings.model_name,
-            messages=openai_messages,
-            temperature=temp,
-            max_tokens=tokens,
-            stop=stop_sequences,
-        )
-        
-        return response.choices[0].message.content or ""
-    
-    async def chat_stream(
-        self, 
-        messages: List[ChatMessage],
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        stop_sequences: Optional[List[str]] = None,
-    ) -> AsyncGenerator[str, None]:
-        """Generate a response in a chat conversation as a stream using OpenAI.
-        
-        Args:
-            messages: Chat history
-            temperature: Sampling temperature
-            max_tokens: Maximum number of tokens to generate
-            stop_sequences: Sequences that should stop generation
-            
-        Yields:
-            str: Generated response chunks
-        """
-        # Convert our ChatMessage objects to OpenAI format
-        openai_messages = [
-            {
-                "role": message.role.value,
-                "content": message.content,
-            }
-            for message in messages
-        ]
-        
-        # Use settings if parameters not provided
-        temp = temperature if temperature is not None else self.settings.temperature
-        tokens = max_tokens if max_tokens is not None else self.settings.max_tokens
-        
-        response = await self.client.chat.completions.create(
-            model=self.settings.model_name,
-            messages=openai_messages,
-            temperature=temp,
-            max_tokens=tokens,
-            stop=stop_sequences,
-            stream=True,
-        )
-        
-        async for chunk in response:
-            if chunk.choices and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
-
-
-class GoogleLLMService(BaseLLMService):
-    """Google LLM service."""
-    
-    def __init__(self, settings: LLMSettings):
+    def __init__(self, settings: Optional[LLMSettings] = None):
         """Initialize the Google LLM service.
         
         Args:
-            settings: LLM settings
+            settings: Optional LLM settings
         """
-        super().__init__(settings)
-        # TODO: Initialize Google client
-    
-    @track_latency(llm_request_duration, {"provider": "google"})
+        # This is a stub implementation - would use Google Generative AI in production
+        self.settings = settings or LLMSettings()
+        logger.info(f"Initialized GoogleLLMService with model {self.settings.model_name}")
+        
     async def generate(
         self, 
         prompt: str,
@@ -303,7 +214,9 @@ class GoogleLLMService(BaseLLMService):
         max_tokens: Optional[int] = None,
         stop_sequences: Optional[List[str]] = None,
     ) -> str:
-        """Generate text from a prompt using Google.
+        """Generate text from a prompt.
+        
+        This is a stub implementation.
         
         Args:
             prompt: Prompt to generate from
@@ -314,9 +227,7 @@ class GoogleLLMService(BaseLLMService):
         Returns:
             str: Generated text
         """
-        # TODO: Implement Google LLM API call
-        # This is a placeholder implementation
-        return f"[Generated text from Google for prompt: {prompt[:10]}...]"
+        return f"This is a stub response from Google Gemini: {prompt[:20]}..."
     
     async def generate_stream(
         self, 
@@ -324,8 +235,10 @@ class GoogleLLMService(BaseLLMService):
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         stop_sequences: Optional[List[str]] = None,
-    ) -> AsyncGenerator[str, None]:
-        """Generate text from a prompt as a stream using Google.
+    ):
+        """Generate text from a prompt as a stream.
+        
+        This is a stub implementation.
         
         Args:
             prompt: Prompt to generate from
@@ -336,11 +249,10 @@ class GoogleLLMService(BaseLLMService):
         Yields:
             str: Generated text chunks
         """
-        # TODO: Implement Google LLM streaming API call
-        # This is a placeholder implementation
-        yield f"[Generated text from Google for prompt: {prompt[:10]}...]"
+        words = f"This is a stub response from Google Gemini: {prompt[:20]}...".split()
+        for word in words:
+            yield word + " "
     
-    @track_latency(llm_request_duration, {"provider": "google"})
     async def chat(
         self, 
         messages: List[ChatMessage],
@@ -348,7 +260,9 @@ class GoogleLLMService(BaseLLMService):
         max_tokens: Optional[int] = None,
         stop_sequences: Optional[List[str]] = None,
     ) -> str:
-        """Generate a response in a chat conversation using Google.
+        """Generate a response in a chat conversation.
+        
+        This is a stub implementation.
         
         Args:
             messages: Chat history
@@ -359,10 +273,14 @@ class GoogleLLMService(BaseLLMService):
         Returns:
             str: Generated response
         """
-        # TODO: Implement Google LLM API call
-        # This is a placeholder implementation
-        last_message = next((m for m in reversed(messages) if m.role == MessageRole.USER), None)
-        return f"[Generated response from Google for message: {last_message.content[:10] if last_message else 'None'}...]"
+        # Get the last user message, or use a placeholder
+        last_message = "Hello"
+        for msg in reversed(messages):
+            if msg.role == MessageRole.USER:
+                last_message = msg.content
+                break
+                
+        return f"This is a stub response from Google Gemini to: {last_message[:20]}..."
     
     async def chat_stream(
         self, 
@@ -370,8 +288,10 @@ class GoogleLLMService(BaseLLMService):
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         stop_sequences: Optional[List[str]] = None,
-    ) -> AsyncGenerator[str, None]:
-        """Generate a response in a chat conversation as a stream using Google.
+    ):
+        """Generate a response in a chat conversation as a stream.
+        
+        This is a stub implementation.
         
         Args:
             messages: Chat history
@@ -382,7 +302,13 @@ class GoogleLLMService(BaseLLMService):
         Yields:
             str: Generated response chunks
         """
-        # TODO: Implement Google LLM streaming API call
-        # This is a placeholder implementation
-        last_message = next((m for m in reversed(messages) if m.role == MessageRole.USER), None)
-        yield f"[Generated response from Google for message: {last_message.content[:10] if last_message else 'None'}...]" 
+        # Get the last user message, or use a placeholder
+        last_message = "Hello"
+        for msg in reversed(messages):
+            if msg.role == MessageRole.USER:
+                last_message = msg.content
+                break
+                
+        words = f"This is a stub response from Google Gemini to: {last_message[:20]}...".split()
+        for word in words:
+            yield word + " " 

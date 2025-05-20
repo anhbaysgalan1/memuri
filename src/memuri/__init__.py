@@ -9,7 +9,7 @@ __version__ = "0.1.0"
 
 # Export key classes for easier imports
 from memuri.sdk.client import Memuri
-from memuri.domain.models import ChatMessage, Document, Memory
+from memuri.domain.models import ChatMessage, Document, Memory, MemoryCategory
 from memuri.core.config import (
     MemuriSettings, 
     EmbeddingSettings, 
@@ -23,6 +23,7 @@ __all__ = [
     "ChatMessage", 
     "Document", 
     "Memory",
+    "MemoryCategory",
     "MemuriSettings",
     "EmbeddingSettings",
     "LLMSettings",

@@ -50,7 +50,7 @@ config = {
     "embedder": {
         "provider": "openai",
         "config": {
-            "model": "text-embedding-ada-002"
+            "model": "text-embedding-3-small"
         }
     }
 }

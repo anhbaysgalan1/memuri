@@ -2,7 +2,7 @@
 
 import asyncio
 import os
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Union
 
 from memuri.core.config import MemuriSettings, EmbeddingSettings, LLMSettings, get_settings
 from memuri.core.logging import configure_logging, get_logger
@@ -80,7 +80,7 @@ class Memuri:
                 "embedder": {
                     "provider": "openai",
                     "config": {
-                        "model": "text-embedding-ada-002",
+                        "model": "text-embedding-3-small",
                     }
                 }
             }
@@ -106,7 +106,7 @@ class Memuri:
             # Create embedding settings
             embedding_settings = EmbeddingSettings(
                 provider=provider,
-                model_name=provider_config.get("model", "text-embedding-ada-002"),
+                model_name=provider_config.get("model", "text-embedding-3-small"),
                 api_key=provider_config.get("api_key"),
                 base_url=provider_config.get("base_url"),
                 embedding_dims=provider_config.get("embedding_dims"),

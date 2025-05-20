@@ -70,7 +70,10 @@ class VectorStoreSettings(BaseSettings):
         "pgvector", description="Vector store provider"
     )
     dimension: int = Field(1536, description="Embedding dimension")
+    dimensions: int = Field(1536, description="Embedding dimensions (alias for dimension)")
     index_type: str = Field("hnsw", description="Index type for vector store")
+    connection_string: Optional[str] = Field(None, description="Connection string for the vector store")
+    collection_name: Optional[str] = Field(None, description="Collection/table name for the vector store")
     
     # HNSW-specific settings
     ef_construction: int = Field(200, description="ef_construction parameter for HNSW index")
@@ -85,7 +88,7 @@ class EmbeddingSettings(BaseSettings):
         "openai", description="Embedding provider"
     )
     model_name: str = Field(
-        "text-embedding-ada-002", description="Embedding model name"
+        "text-embedding-3-small", description="Embedding model name"
     )
     batch_size: int = Field(32, description="Batch size for embedding calls")
     max_tokens: int = Field(8191, description="Maximum tokens for embedding")
@@ -241,8 +244,15 @@ def get_settings() -> MemuriSettings:
     # Get embedding settings with API keys from environment
     embedding_settings = EmbeddingSettings(
         provider=os.environ.get("MEMURI_EMBEDDING__PROVIDER", "openai"),
-        model_name=os.environ.get("MEMURI_EMBEDDING__MODEL_NAME", "text-embedding-ada-002"),
+        model_name=os.environ.get("MEMURI_EMBEDDING__MODEL_NAME", "text-embedding-3-small"),
         api_key=os.environ.get("OPENAI_API_KEY") or os.environ.get("MEMURI_EMBEDDING__API_KEY"),
+    )
+    
+    # Get vector store settings from environment
+    vector_store_settings = VectorStoreSettings(
+        provider=os.environ.get("MEMURI_VECTOR_STORE__PROVIDER", "pgvector"),
+        connection_string=os.environ.get("POSTGRES_CONNECTION") or os.environ.get("MEMURI_VECTOR_STORE__CONNECTION_STRING"),
+        collection_name=os.environ.get("MEMURI_VECTOR_STORE__COLLECTION_NAME", "memories"),
     )
     
     # Get LLM settings with API keys from environment 
@@ -252,19 +262,12 @@ def get_settings() -> MemuriSettings:
         api_key=os.environ.get("OPENAI_API_KEY") or os.environ.get("MEMURI_LLM__API_KEY"),
     )
     
-    # Try to load all settings from .env file
-    try:
-        return MemuriSettings(
-            database=database_settings,
-            redis=redis_settings,
-            embedding=embedding_settings,
-            llm=llm_settings,
-        )
-    except Exception as e:
-        # If loading fails, return a minimal configuration
-        return MemuriSettings(
-            database=database_settings,
-            redis=redis_settings,
-            embedding=embedding_settings,
-            llm=llm_settings,
-        ) 
+    # Create and return settings
+    return MemuriSettings(
+        debug=os.environ.get("MEMURI_DEBUG", "false").lower() == "true",
+        database=database_settings,
+        redis=redis_settings,
+        embedding=embedding_settings,
+        vector_store=vector_store_settings,
+        llm=llm_settings,
+    ) 

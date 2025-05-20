@@ -1,7 +1,7 @@
 """Interfaces for the memuri SDK."""
 
 import abc
-from typing import Any, Dict, List, Optional, Protocol, Union
+from typing import Any, Dict, List, Optional, Protocol, Union, runtime_checkable
 
 from memuri.domain.models import (
     ChatMessage,
@@ -15,6 +15,57 @@ from memuri.domain.models import (
 )
 
 
+# Add this class for backwards compatibility with existing code
+class VectorStoreAdapter:
+    """Base class for vector store adapters."""
+    
+    async def initialize(self) -> None:
+        """Initialize the adapter."""
+        pass
+    
+    async def add(self, documents: List[Any], batch_size: int = 100) -> List[str]:
+        """Add documents to the vector store.
+        
+        Args:
+            documents: List of documents to add
+            batch_size: Number of documents to add in each batch
+            
+        Returns:
+            List[str]: List of document IDs
+        """
+        raise NotImplementedError()
+    
+    async def search(
+        self, 
+        query_embedding: List[float],
+        k: int = 10,
+        filter_dict: Optional[Dict[str, Any]] = None,
+    ) -> List[Any]:
+        """Search for similar documents.
+        
+        Args:
+            query_embedding: Query embedding vector
+            k: Number of results to return
+            filter_dict: Optional filter dictionary
+            
+        Returns:
+            List[Any]: List of results
+        """
+        raise NotImplementedError()
+    
+    async def delete(self, document_ids: List[str]) -> None:
+        """Delete documents from the vector store.
+        
+        Args:
+            document_ids: List of document IDs to delete
+        """
+        raise NotImplementedError()
+    
+    async def close(self) -> None:
+        """Close connections and free resources."""
+        pass
+
+@runtime_checkable
 class EmbeddingService(Protocol):
     """Interface for embedding services."""
     
@@ -52,6 +103,7 @@ class EmbeddingService(Protocol):
         ...
 
 
+@runtime_checkable
 class MemoryService(Protocol):
     """Interface for memory storage and retrieval."""
     
@@ -189,6 +241,7 @@ class MemoryService(Protocol):
         ...
 
 
+@runtime_checkable
 class LLMService(Protocol):
     """Interface for LLM services."""
     
@@ -277,6 +330,7 @@ class LLMService(Protocol):
         ...
 
 
+@runtime_checkable
 class ClassifierService(Protocol):
     """Interface for classifying text into categories."""
     
@@ -303,6 +357,7 @@ class ClassifierService(Protocol):
         ...
 
 
+@runtime_checkable
 class FeedbackService(Protocol):
     """Interface for handling classifier feedback."""
     
@@ -328,6 +383,7 @@ class FeedbackService(Protocol):
         ...
 
 
+@runtime_checkable
 class RerankingService(Protocol):
     """Interface for reranking search results."""
     
@@ -351,6 +407,7 @@ class RerankingService(Protocol):
         ...
 
 
+@runtime_checkable
 class VectorIndex(Protocol):
     """Interface for in-memory vector indices."""
     

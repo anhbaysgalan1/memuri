@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   # PostgreSQL with pgvector extension
   postgres:
-    image: pgvector/pgvector:latest
+    image: pgvector/pgvector:pg17
     environment:
       POSTGRES_USER: memuri
       POSTGRES_PASSWORD: memuri
@@ -24,14 +22,13 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
-    command: ["redis-server", "--loadmodule", "/usr/lib/redis/modules/redisearch.so"]
+      - ./redis_data:/data
+    command: ["redis-server"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
-
 
   # Milvus for vector storage
   milvus:
@@ -41,8 +38,9 @@ services:
     volumes:
       - milvus_data:/var/lib/milvus
     environment:
-      ETCD_ENDPOINTS: localhost:2379
-      MINIO_ADDRESS: localhost:9000
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    command: ["milvus", "run", "standalone"]
     depends_on:
       - etcd
       - minio
@@ -56,6 +54,7 @@ services:
       - ETCD_QUOTA_BACKEND_BYTES=4294967296
     volumes:
       - etcd_data:/etcd
+    command: ["/usr/local/bin/etcd", "--advertise-client-urls=http://127.0.0.1:2379", "--listen-client-urls=http://0.0.0.0:2379", "--data-dir=/etcd"]
 
   # MinIO for Milvus
   minio:
@@ -65,58 +64,44 @@ services:
       MINIO_SECRET_KEY: minioadmin
     volumes:
       - minio_data:/data
-    command: minio server /data
+    command: ["minio", "server", "/data"]
+    ports:
+      - "9000:9000"
 
   # Celery worker for async tasks
   celery_worker:
     build:
       context: .
-      target: development
-    command: celery -A memuri.workers.celery_app worker --loglevel=info
+    command: 'python -m celery worker -A memuri.workers.celery_app --loglevel=info'
     volumes:
-      - .:/app
+      - ./src:/app/src
     depends_on:
       - redis
       - postgres
     environment:
       - REDIS_URL=redis://redis:6379/0
       - POSTGRES_URL=postgresql://memuri:memuri@postgres:5432/memuri
+      - C_FORCE_ROOT=true
+      - PYTHONPATH=/app
 
   # Celery beat for scheduled tasks
   celery_beat:
     build:
       context: .
-      target: development
-    command: celery -A memuri.workers.celery_app beat --loglevel=info
+    command: 'python -m celery beat -A memuri.workers.celery_app --loglevel=info'
     volumes:
-      - .:/app
+      - ./src:/app/src
     depends_on:
       - redis
       - celery_worker
     environment:
       - REDIS_URL=redis://redis:6379/0
-
-  # SDK service
-  memuri:
-    build:
-      context: .
-      target: development
-    volumes:
-      - .:/app
-    depends_on:
-      - postgres
-      - redis
-      - celery_worker
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - POSTGRES_URL=postgresql://memuri:memuri@postgres:5432/memuri
-    ports:
-      - "8000:8000"
-    command: python -m memuri.cli --host 0.0.0.0 --port 8000
+      - C_FORCE_ROOT=true
+      - PYTHONPATH=/app
 
 volumes:
   postgres_data:
   redis_data:
   milvus_data:
   etcd_data:
-  minio_data: 
+  minio_data:
