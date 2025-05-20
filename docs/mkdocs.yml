@@ -1,0 +1,99 @@
+site_name: Memuri
+site_description: High-performance, pluggable conversational memory services
+repo_url: https://github.com/anhbaysgalan1/memuri
+site_url: https://anhbaysgalan1.github.io/memuri
+
+theme:
+  name: material
+  palette:
+    primary: indigo
+    accent: deep purple
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.expand
+    - navigation.indexes
+    - content.code.copy
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.tasklist
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - tables
+  - footnotes
+  - attr_list
+  - md_in_html
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.emoji:
+      emoji_generator: '-'
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_heading: true
+            heading_level: 3
+  - autorefs
+
+nav:
+  - Home: index.md
+  - Usage:
+    - Quickstart: usage/quickstart.md
+    - Configuration: usage/configuration.md
+    - Memory Management: usage/memory_management.md
+    - Best Practices: usage/best_practices.md
+  - Cookbooks:
+    - Overview: cookbooks/index.md
+    - Memory Categories: cookbooks/memory_categories.md
+    - Reranking Pipeline: cookbooks/reranking_pipeline.md
+    - Feedback Loop: cookbooks/feedback_loop.md
+    - Memory Lifecycle: cookbooks/memory_lifecycle.md
+    - Performance Tuning: cookbooks/performance_tuning.md
+    - Embedder Customization: cookbooks/embedder_customization.md
+  - API Reference:
+    - Overview: api-reference/index.md
+    - Memuri Class: api-reference/memuri.md
+    - VectorStore Adapters: api-reference/vector_stores.md
+    - Cache Adapters: api-reference/cache.md
+    - Embedding Providers: api-reference/embedding.md
+    - Core Models: api-reference/models.md
+    - Services: api-reference/services.md
+    - Utility Functions: api-reference/utils.md
+  - Examples:
+    - Overview: examples/index.md
+    - Chat with Memory: examples/chat_with_memory.md
+    - LLM Integration: examples/llm_integration.md
+    - Embedder Configuration: examples/config_embedder.md
+    - Memory-Augmented RAG: examples/rag_system.md
+    - Feedback-Driven Bot: examples/feedback_bot.md
+  - Development:
+    - Contributing: development/contributing.md
+    - Testing: development/testing.md
+    - Release Process: development/release.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/anhbaysgalan1/memuri
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/memuri/
+
+copyright: Copyright &copy; 2023
+
+extra_css:
+  - css/custom.css
+
+watch:
+  - ../src/memuri 
