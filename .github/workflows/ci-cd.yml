@@ -1,0 +1,123 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # To allow committing and pushing version bumps
+      packages: write  # If you were publishing to GitHub Packages (not the case here, but good practice if ever needed)
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1.3.1
+        with:
+          virtualenvs-in-project: true
+
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v3 # Using v3 as v4 is still in beta
+        with:
+          path: .venv
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
+      - name: Install Dependencies
+        run: poetry install --with dev --no-interaction --no-ansi
+
+      - name: Set up PostgreSQL
+        uses: docker/run-action@v1 # Using docker/run-action to run a service container
+        with:
+          image: pgvector/pgvector:pg15
+          options: >-
+            --name postgresql
+            -p 5432:5432
+            -e POSTGRES_USER=testuser
+            -e POSTGRES_PASSWORD=testpassword
+            -e POSTGRES_DB=testdb
+          detached: true # Run in detached mode
+          health_check: pg_isready -U testuser -d testdb
+
+      - name: Set up Redis
+        uses: docker/run-action@v1
+        with:
+          image: redis:7-alpine
+          options: >-
+            --name redis
+            -p 6379:6379
+          detached: true
+          health_check: redis-cli ping
+
+      - name: Linting
+        run: poetry run flake8 src/memuri
+
+      - name: Type Checking
+        run: poetry run mypy src/memuri
+
+      - name: Testing
+        id: tests # Add an id to refer to the outcome of this step
+        run: poetry run pytest --cov=memuri
+        env:
+          MEMURI_DATABASE__POSTGRES_URL: postgresql://testuser:testpassword@localhost:5432/testdb
+          MEMURI_CACHE__REDIS_URL: redis://localhost:6379/0
+          # Add other necessary env vars here
+
+      - name: Configure Git User
+        if: success() && steps.tests.outcome == 'success' # Run only if tests pass
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+      - name: Determine and Bump Version
+        if: success() && steps.tests.outcome == 'success' # Run only if tests pass
+        id: version_bump # Add an id to refer to the outcome of this step
+        run: |
+          # Assuming pyproject.toml is in the root
+          # This is a simplified way to get the version. A more robust way might be needed.
+          BASE_VERSION=$(poetry version -s)
+          # Calculate next dev version
+          NEXT_DEV_VERSION="${BASE_VERSION}.dev$(git rev-list --count HEAD)"
+          echo "Calculated version: $NEXT_DEV_VERSION"
+          poetry version $NEXT_DEV_VERSION
+          echo "new_version=$(poetry version -s)" >> $GITHUB_OUTPUT
+
+
+      - name: Build Package
+        if: success() && steps.tests.outcome == 'success' # Run only if tests pass
+        run: poetry build
+
+      - name: Publish to PyPI
+        if: success() && steps.tests.outcome == 'success' # Run only if tests pass
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip_existing: true
+
+      - name: Commit Version Bump
+        if: success() && steps.tests.outcome == 'success' && steps.version_bump.outcome == 'success' # Run only if publish was successful (implicitly, if previous steps succeeded)
+        run: |
+          git add pyproject.toml poetry.lock
+          # Use the version output from the version_bump step
+          git commit -m "Automated version bump to ${{ steps.version_bump.outputs.new_version }} [skip ci]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GITHUB_TOKEN is required to push to the repository
+          # Ensure the workflow has write permissions to the repository for this step to work.
+          # This might require setting permissions at the job or workflow level, e.g.:
+          # permissions:
+          #   contents: write
