@@ -39,10 +39,13 @@ jobs:
       - name: Install Dependencies
         run: poetry install --with dev --no-interaction --no-ansi
 
-      - name: Set up PostgreSQL
-        uses: docker/run-action@v1 # Using docker/run-action to run a service container
+      - name: Set up PostgreSQL with pgvector
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Run PostgreSQL with pgvector
+        uses: docker/run-action@v2
         with:
-          image: pgvector/pgvector:pg15
+          image: pgvector/pgvector:pg17
           options: >-
             --name postgresql
             -p 5432:5432
@@ -50,17 +53,43 @@ jobs:
             -e POSTGRES_PASSWORD=testpassword
             -e POSTGRES_DB=testdb
           detached: true # Run in detached mode
-          health_check: pg_isready -U testuser -d testdb
+
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          # Wait for PostgreSQL to be ready
+          timeout=60
+          until pg_isready -h localhost -p 5432 -U testuser || [ $timeout -eq 0 ]; do
+            sleep 1
+            ((timeout--))
+          done
+          if [ $timeout -eq 0 ]; then
+            echo "Timed out waiting for PostgreSQL to be ready"
+            exit 1
+          fi
+          echo "PostgreSQL is ready"
 
       - name: Set up Redis
-        uses: docker/run-action@v1
+        uses: docker/run-action@v2
         with:
           image: redis:7-alpine
           options: >-
             --name redis
             -p 6379:6379
           detached: true
-          health_check: redis-cli ping
+
+      - name: Wait for Redis to be ready
+        run: |
+          # Wait for Redis to be ready
+          timeout=30
+          until redis-cli ping || [ $timeout -eq 0 ]; do
+            sleep 1
+            ((timeout--))
+          done
+          if [ $timeout -eq 0 ]; then
+            echo "Timed out waiting for Redis to be ready"
+            exit 1
+          fi
+          echo "Redis is ready"
 
       - name: Linting
         run: poetry run flake8 src/memuri
@@ -72,9 +101,17 @@ jobs:
         id: tests # Add an id to refer to the outcome of this step
         run: poetry run pytest --cov=memuri
         env:
-          MEMURI_DATABASE__POSTGRES_URL: postgresql://testuser:testpassword@localhost:5432/testdb
-          MEMURI_CACHE__REDIS_URL: redis://localhost:6379/0
-          # Add other necessary env vars here
+          # Updated to use standardized environment variables (single underscore format)
+          MEMURI_DATABASE_POSTGRES_URL: postgresql://testuser:testpassword@localhost:5432/testdb
+          MEMURI_REDIS_REDIS_URL: redis://localhost:6379/0
+          MEMURI_VECTOR_STORE_PROVIDER: pgvector
+          MEMURI_VECTOR_STORE_DIMENSION: 1536
+          MEMURI_VECTOR_STORE_CONNECTION_STRING: postgresql://testuser:testpassword@localhost:5432/testdb
+          MEMURI_VECTOR_STORE_COLLECTION_NAME: test_memories
+          MEMURI_LLM_API_KEY: ${{ secrets.MEMURI_LLM_API_KEY }}
+          MEMURI_EMBEDDING_API_KEY: ${{ secrets.MEMURI_LLM_API_KEY }}
+          MEMURI_EMBEDDING_PROVIDER: openai
+          MEMURI_EMBEDDING_MODEL_NAME: text-embedding-3-small
 
       - name: Configure Git User
         if: success() && steps.tests.outcome == 'success' # Run only if tests pass
@@ -117,7 +154,3 @@ jobs:
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GITHUB_TOKEN is required to push to the repository
-          # Ensure the workflow has write permissions to the repository for this step to work.
-          # This might require setting permissions at the job or workflow level, e.g.:
-          # permissions:
-          #   contents: write
