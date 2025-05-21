@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "memuri"
-version = "0.1.4"
+version = "0.1.5"
 description = "Memuri is a self‑hosted memory infrastructure for AI applications, offering a unified, pluggable SDK to persist and retrieve conversational context with sub‑second latency. It enables any AI agent or assistant to remember key information across sessions—so your apps never forget what matters, while retaining full flexibility to swap storage backends, embedding models, and retrieval strategies."
 authors = ["Ankhbayasgalan anhbaysgalan1@gmail.com"]
 readme = "README.md"
