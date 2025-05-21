@@ -28,32 +28,33 @@ async def setup_memuri_client(api_key=None, db_url=None):
     """Set up a Memuri client for testing.
     
     Args:
-        api_key: OpenAI API key (optional)
+        api_key: LLM API key (optional)
         db_url: PostgreSQL URL (optional)
         
     Returns:
         Memuri: Configured Memuri client
     """
-    # OpenAI API key configuration
-    openai_api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-    if not openai_api_key:
-        logger.error("OPENAI_API_KEY not set. Please provide an API key via --api-key or set the OPENAI_API_KEY environment variable.")
+    # API key configuration
+    llm_api_key = api_key or os.environ.get("MEMURI_LLM_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
+    if not llm_api_key:
+        logger.error("MEMURI_LLM_API_KEY not set. Please provide an API key via --api-key or set the MEMURI_LLM_API_KEY environment variable.")
         sys.exit(1)
     
-    # Set environment variable
-    os.environ["OPENAI_API_KEY"] = openai_api_key
+    # Set environment variables
+    os.environ["MEMURI_LLM_API_KEY"] = llm_api_key
+    os.environ["MEMURI_EMBEDDING_API_KEY"] = llm_api_key
     
     # Create embedding service
     embedding_settings = EmbeddingSettings(
         provider="openai",
         model_name="text-embedding-3-small",
-        api_key=openai_api_key,
+        api_key=llm_api_key,
     )
     embedding_service = EmbedderFactory.create(provider="openai", settings=embedding_settings)
     
     # Database configuration
     postgres_url = db_url or os.environ.get(
-        "MEMURI_DATABASE__POSTGRES_URL", 
+        "MEMURI_DATABASE_POSTGRES_URL", 
         "postgresql://memuri:memuri@localhost:5432/memuri"
     )
     
@@ -102,7 +103,7 @@ async def run_latency_tests(
     Args:
         test_type: Type of test to run ("add", "search", "all")
         iterations: Number of iterations for each test
-        api_key: OpenAI API key (optional)
+        api_key: LLM API key (optional)
         db_url: PostgreSQL URL (optional)
         save_results: Whether to save results to a file
     """
@@ -116,8 +117,8 @@ async def run_latency_tests(
             "timestamp": datetime.datetime.now().isoformat(),
             "test_type": test_type,
             "iterations": iterations,
-            "database_url": db_url or os.environ.get("MEMURI_DATABASE__POSTGRES_URL", "default"),
-            "embedding_model": os.environ.get("MEMURI_EMBEDDING__MODEL_NAME", "text-embedding-3-small"),
+            "database_url": db_url or os.environ.get("MEMURI_DATABASE_POSTGRES_URL", "default"),
+            "embedding_model": os.environ.get("MEMURI_EMBEDDING_MODEL_NAME", "text-embedding-3-small"),
             "tests": {}
         }
         
@@ -207,7 +208,7 @@ def main():
     )
     parser.add_argument(
         "--api-key",
-        help="OpenAI API key (optional, can use OPENAI_API_KEY env var)",
+        help="LLM API key (optional, can use MEMURI_LLM_API_KEY env var)",
     )
     parser.add_argument(
         "--db-url",

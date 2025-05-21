@@ -10,6 +10,7 @@ from memuri.core.config import EmbeddingSettings
 from memuri.core.logging import get_logger
 from memuri.core.telemetry import track_latency
 from memuri.domain.models import Document, EmbeddingResponse
+from memuri.core.text_utils import normalize_text_for_embedding, batch_text
 
 logger = get_logger(__name__)
 
@@ -78,6 +79,37 @@ class OpenAIEmbeddingService:
             logger.error(f"Failed to initialize OpenAI client: {e}")
             raise ValueError(f"Failed to initialize OpenAI client: {e}") from e
     
+    def _sanitize_text_for_embedding(self, texts: List[str]) -> List[str]:
+        """Sanitize text for embedding to prevent API errors.
+        
+        Args:
+            texts: List of texts to sanitize
+            
+        Returns:
+            List of sanitized texts
+        """
+        sanitized_texts = []
+        for text in texts:
+            # Skip empty texts
+            if not text or text.strip() == "":
+                sanitized_texts.append("")
+                continue
+                
+            # Normalize and sanitize text
+            try:
+                sanitized = normalize_text_for_embedding(text)
+                # Ensure we have at least some content
+                if not sanitized or sanitized.strip() == "":
+                    logger.warning(f"Text was sanitized to empty string: '{text[:50]}...'")
+                    sanitized = "Empty content after sanitization"
+                sanitized_texts.append(sanitized)
+            except Exception as e:
+                logger.error(f"Error sanitizing text: {e}")
+                # Add a placeholder to maintain index alignment
+                sanitized_texts.append("Error in text content")
+        
+        return sanitized_texts
+    
     @track_latency()
     async def embed_texts(self, texts: List[str]) -> EmbeddingResponse:
         """Embed a list of texts.
@@ -96,12 +128,15 @@ class OpenAIEmbeddingService:
                 dimensions=self.settings.embedding_dims or 1536,
                 tokens=0,
             )
+        
+        # Sanitize texts for embedding to prevent API errors
+        sanitized_texts = self._sanitize_text_for_embedding(texts)
             
         try:
             # Call OpenAI API with any extra parameters
             embedding_params = {
                 "model": self.model,
-                "input": texts,
+                "input": sanitized_texts,
             }
             
             # Add any additional model parameters if provided
@@ -132,6 +167,11 @@ class OpenAIEmbeddingService:
             
         except Exception as e:
             logger.error(f"Error generating embeddings: {e}")
+            # For debugging
+            if len(sanitized_texts) < 5:
+                logger.debug(f"Attempted to embed texts: {sanitized_texts}")
+            else:
+                logger.debug(f"Attempted to embed {len(sanitized_texts)} texts")
             raise ValueError(f"Error generating embeddings: {e}") from e
     
     async def embed_documents(self, documents: List[Document]) -> EmbeddingResponse:

@@ -155,8 +155,12 @@ The `run_latency_tests.py` script provides a convenient command-line interface f
 |--------|-------------|---------|
 | `--test-type` | Type of test to run: "add", "search", or "all" | "all" |
 | `--iterations` | Number of iterations for each test | 10 |
-| `--api-key` | OpenAI API key (can use OPENAI_API_KEY env var instead) | - |
-| `--db-url` | PostgreSQL URL (can use MEMURI_DATABASE__POSTGRES_URL env var instead) | postgresql://memuri:memuri@localhost:5432/memuri |
+| `--api-key` | OpenAI API key (can use OPENAI_API_KEY env var instead) | sk-your-openai-key |
+| `--model` | Embedding model name | text-embedding-3-small |
+| `--operation` | Operation to test (add, search, both) | both |
+| `--duration` | Duration in seconds to run the test | 30 |
+| `--concurrency` | Number of concurrent operations | 10 |
+| `--db-url` | PostgreSQL URL (can use MEMURI_DATABASE_POSTGRES_URL env var instead) | postgresql://memuri:memuri@localhost:5432/memuri |
 | `--log-level` | Logging level: DEBUG, INFO, WARNING, ERROR | INFO |
 | `--no-save` | Don't save results to a file | False |
 
@@ -241,8 +245,8 @@ Before running the tests, ensure:
 These tests respect the following environment variables:
 
 - `OPENAI_API_KEY`: API key for OpenAI embeddings
-- `MEMURI_DATABASE__POSTGRES_URL`: PostgreSQL connection string
-- `MEMURI_EMBEDDING__MODEL_NAME`: Embedding model to use
+- `MEMURI_DATABASE_POSTGRES_URL`: PostgreSQL connection string
+- `MEMURI_EMBEDDING_MODEL_NAME`: Embedding model to use
 
 ## Troubleshooting
 
@@ -251,4 +255,12 @@ If you encounter issues:
 1. Verify that Postgres is running and accessible
 2. Check your API key is valid and has sufficient quota
 3. Increase log level to DEBUG for more detailed output
-4. Ensure numpy is properly installed for statistical calculations 
+4. Ensure numpy is properly installed for statistical calculations
+
+### Required Environment Variables
+
+For most tests, you'll need these environment variables:
+
+- `OPENAI_API_KEY`: Your OpenAI API key
+- `MEMURI_DATABASE_POSTGRES_URL`: PostgreSQL connection string
+- `MEMURI_EMBEDDING_MODEL_NAME`: Embedding model to use 

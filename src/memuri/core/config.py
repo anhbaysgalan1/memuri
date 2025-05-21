@@ -230,36 +230,36 @@ def get_settings() -> MemuriSettings:
     redis_settings = None
     
     # Try to get database settings if environment variables are set
-    if os.environ.get("MEMURI_DATABASE__POSTGRES_URL"):
+    if os.environ.get("MEMURI_DATABASE_POSTGRES_URL"):
         database_settings = DatabaseSettings(
-            postgres_url=os.environ.get("MEMURI_DATABASE__POSTGRES_URL", "")
+            postgres_url=os.environ.get("MEMURI_DATABASE_POSTGRES_URL", "")
         )
     
     # Try to get Redis settings if environment variables are set
-    if os.environ.get("MEMURI_REDIS__REDIS_URL"):
+    if os.environ.get("MEMURI_REDIS_REDIS_URL"):
         redis_settings = RedisSettings(
-            redis_url=os.environ.get("MEMURI_REDIS__REDIS_URL", "")
+            redis_url=os.environ.get("MEMURI_REDIS_REDIS_URL", "")
         )
     
     # Get embedding settings with API keys from environment
     embedding_settings = EmbeddingSettings(
-        provider=os.environ.get("MEMURI_EMBEDDING__PROVIDER", "openai"),
-        model_name=os.environ.get("MEMURI_EMBEDDING__MODEL_NAME", "text-embedding-3-small"),
-        api_key=os.environ.get("OPENAI_API_KEY") or os.environ.get("MEMURI_EMBEDDING__API_KEY"),
+        provider=os.environ.get("MEMURI_EMBEDDING_PROVIDER", "openai"),
+        model_name=os.environ.get("MEMURI_EMBEDDING_MODEL_NAME", "text-embedding-3-small"),
+        api_key=os.environ.get("OPENAI_API_KEY") or os.environ.get("MEMURI_EMBEDDING_API_KEY"),
     )
     
     # Get vector store settings from environment
     vector_store_settings = VectorStoreSettings(
-        provider=os.environ.get("MEMURI_VECTOR_STORE__PROVIDER", "pgvector"),
-        connection_string=os.environ.get("POSTGRES_CONNECTION") or os.environ.get("MEMURI_VECTOR_STORE__CONNECTION_STRING"),
-        collection_name=os.environ.get("MEMURI_VECTOR_STORE__COLLECTION_NAME", "memories"),
+        provider=os.environ.get("MEMURI_VECTOR_STORE_PROVIDER", "pgvector"),
+        connection_string=os.environ.get("POSTGRES_CONNECTION") or os.environ.get("MEMURI_VECTOR_STORE_CONNECTION_STRING"),
+        collection_name=os.environ.get("MEMURI_VECTOR_STORE_COLLECTION_NAME", "memories"),
     )
     
     # Get LLM settings with API keys from environment 
     llm_settings = LLMSettings(
-        provider=os.environ.get("MEMURI_LLM__PROVIDER", "openai"),
-        model_name=os.environ.get("MEMURI_LLM__MODEL_NAME", "gpt-3.5-turbo"),
-        api_key=os.environ.get("OPENAI_API_KEY") or os.environ.get("MEMURI_LLM__API_KEY"),
+        provider=os.environ.get("MEMURI_LLM_PROVIDER", "openai"),
+        model_name=os.environ.get("MEMURI_LLM_MODEL_NAME", "gpt-3.5-turbo"),
+        api_key=os.environ.get("OPENAI_API_KEY") or os.environ.get("MEMURI_LLM_API_KEY"),
     )
     
     # Create and return settings

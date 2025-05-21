@@ -13,19 +13,120 @@ Memuri provides multiple ways to configure the SDK:
 
 ## Environment Variables
 
-The simplest way to configure Memuri is through environment variables. Memuri looks for variables with the `MEMURI_` prefix:
+Memuri uses a hierarchical configuration system with Pydantic settings classes. Configuration can be provided through environment variables, which take precedence over default values.
+
+### Basic Setup with Environment Variables
+
+Set up the required configuration using environment variables:
 
 ```python
 import os
-from memuri import Memuri
 
-# Set required environment variables
-os.environ["MEMURI_DATABASE__POSTGRES_URL"] = "postgresql://postgres:postgres@localhost:5432/memuri"
-os.environ["MEMURI_REDIS__REDIS_URL"] = "redis://localhost:6379/0"
+# Database configuration
+os.environ["MEMURI_DATABASE_POSTGRES_URL"] = "postgresql://postgres:postgres@localhost:5432/memuri"
+os.environ["MEMURI_REDIS_REDIS_URL"] = "redis://localhost:6379/0"
 os.environ["OPENAI_API_KEY"] = "sk-your-api-key"
+```
 
-# Create Memuri instance (will use environment variables)
-memory = Memuri()
+### Environment Variable Naming Convention
+
+All Memuri-specific environment variables follow this convention:
+
+- Prefix: `MEMURI_`
+- Sections separated by underscore: `_`
+- Example: `MEMURI_DATABASE_POSTGRES_URL`
+
+### Available Environment Variables
+
+Here are the main environment variables Memuri supports:
+
+#### Database
+
+- `MEMURI_DATABASE_POSTGRES_URL`: PostgreSQL connection URL
+- `MEMURI_REDIS_REDIS_URL`: Redis connection URL
+
+#### Embedding Service
+
+- `MEMURI_EMBEDDING_PROVIDER`: Embedding provider (openai, google, sentence_transformers)
+- `MEMURI_EMBEDDING_MODEL_NAME`: Model name for embeddings
+- `MEMURI_EMBEDDING_API_KEY`: API key for embeddings (if different from OPENAI_API_KEY)
+
+#### Vector Store
+
+- `MEMURI_VECTOR_STORE_PROVIDER`: Vector store provider (pgvector, milvus, qdrant)
+- `MEMURI_VECTOR_STORE_CONNECTION_STRING`: Connection string for vector store
+- `MEMURI_VECTOR_STORE_COLLECTION_NAME`: Collection name for vector store
+
+#### LLM Service
+
+- `MEMURI_LLM_PROVIDER`: LLM provider (openai, google)
+- `MEMURI_LLM_MODEL_NAME`: Model name for LLM
+- `MEMURI_LLM_API_KEY`: API key for LLM (if different from OPENAI_API_KEY)
+
+#### External API Keys
+
+- `OPENAI_API_KEY`: OpenAI API key (used by default for embedding and LLM)
+- `GOOGLE_API_KEY`: Google API key (required for Google embeddings and LLM)
+
+### Example Configuration
+
+Here's an example of setting up the environment variables for a complete configuration:
+
+```python
+import os
+
+# OpenAI API Key
+os.environ["OPENAI_API_KEY"] = "sk-your-openai-key"
+os.environ["GOOGLE_API_KEY"] = "your-google-key"
+
+# Database Settings
+os.environ["MEMURI_DATABASE_POSTGRES_URL"] = "postgresql://postgres:postgres@localhost:5432/memuri"
+os.environ["MEMURI_REDIS_REDIS_URL"] = "redis://localhost:6379/0"
+
+# Custom Embedding Settings
+os.environ["MEMURI_EMBEDDING_API_KEY"] = "sk-your-openai-key"
+os.environ["MEMURI_EMBEDDING_PROVIDER"] = "openai"
+os.environ["MEMURI_EMBEDDING_MODEL_NAME"] = "text-embedding-3-small"
+```
+
+## Settings Classes
+
+Memuri uses Pydantic settings classes to handle configuration. This allows for type validation and easy access to settings throughout the application.
+
+For advanced configuration, you can create settings objects directly:
+
+```python
+from memuri.core.config import MemuriSettings, EmbeddingSettings, DatabaseSettings
+
+# Create embedding settings
+embedding_settings = EmbeddingSettings(
+    provider="openai",
+    model_name="text-embedding-3-small",
+    api_key="sk-your-api-key"
+)
+
+# Create database settings
+database_settings = DatabaseSettings(
+    postgres_url="postgresql://postgres:postgres@localhost:5432/memuri"
+)
+
+# Create main settings
+settings = MemuriSettings(
+    embedding=embedding_settings,
+    database=database_settings,
+    debug=True
+)
+```
+
+## Retrieving Settings
+
+You can retrieve the current settings using the `get_settings()` function:
+
+```python
+from memuri.core.config import get_settings
+
+settings = get_settings()
+print(f"Using embedding model: {settings.embedding.model_name}")
 ```
 
 ## Using the from_config Method
@@ -37,13 +138,6 @@ from memuri import Memuri
 
 config = {
     "embedder": {
-        "provider": "openai",
-        "config": {
-            "model": "text-embedding-3-small",
-            "api_key": "sk-your-api-key"
-        }
-    },
-    "llm": {
         "provider": "openai",
         "config": {
             "model": "gpt-4",
@@ -84,9 +178,9 @@ import os
 from memuri import Memuri
 
 # Set Memuri-specific API key environment variables
-os.environ["MEMURI_EMBEDDING__API_KEY"] = "sk-your-openai-key" 
-os.environ["MEMURI_EMBEDDING__PROVIDER"] = "openai"
-os.environ["MEMURI_EMBEDDING__MODEL_NAME"] = "text-embedding-3-small"
+os.environ["MEMURI_EMBEDDING_API_KEY"] = "sk-your-openai-key" 
+os.environ["MEMURI_EMBEDDING_PROVIDER"] = "openai"
+os.environ["MEMURI_EMBEDDING_MODEL_NAME"] = "text-embedding-3-small"
 
 memory = Memuri()
 ```
@@ -355,11 +449,11 @@ Use a `.env` file for environment-specific configuration:
 
 ```
 # .env file
-MEMURI_DATABASE__POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/memuri
-MEMURI_REDIS__REDIS_URL=redis://localhost:6379/0
+MEMURI_DATABASE_POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/memuri
+MEMURI_REDIS_REDIS_URL=redis://localhost:6379/0
 OPENAI_API_KEY=sk-your-api-key
-MEMURI_EMBEDDING__PROVIDER=openai
-MEMURI_EMBEDDING__MODEL_NAME=text-embedding-3-small
+MEMURI_EMBEDDING_PROVIDER=openai
+MEMURI_EMBEDDING_MODEL_NAME=text-embedding-3-small
 ```
 
 Then simply:

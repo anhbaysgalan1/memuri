@@ -1,7 +1,7 @@
 """Interfaces for the memuri SDK."""
 
 import abc
-from typing import Any, Dict, List, Optional, Protocol, Union, runtime_checkable
+from typing import Any, Dict, List, Optional, Protocol, Union, runtime_checkable, Tuple
 
 from memuri.domain.models import (
     ChatMessage,
@@ -9,6 +9,7 @@ from memuri.domain.models import (
     EmbeddingResponse,
     Memory,
     MemoryCategory,
+    MemorySource,
     SearchQuery,
     SearchResult,
     ScoredMemory,
@@ -403,6 +404,48 @@ class RerankingService(Protocol):
             
         Returns:
             List[ScoredMemory]: Reranked search results
+        """
+        ...
+
+
+@runtime_checkable
+class MemoryGate(Protocol):
+    """Interface for memory gating decisions."""
+    
+    @abc.abstractmethod
+    async def evaluate(self, text: str, metadata: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
+        """Evaluate whether text should be stored in memory.
+        
+        Args:
+            text: Text to evaluate
+            metadata: Optional metadata that might inform the decision
+            
+        Returns:
+            Tuple[bool, str]: Decision (True=keep, False=skip) and reason
+        """
+        ...
+    
+    @abc.abstractmethod
+    async def evaluate_and_store(
+        self, 
+        text: str, 
+        metadata: Optional[Dict[str, Any]] = None,
+        category: Optional[MemoryCategory] = None,
+        source: Optional[MemorySource] = None,
+    ) -> Tuple[bool, str, Optional[Memory]]:
+        """Evaluate whether text should be stored and store it if it passes.
+        
+        Args:
+            text: Text to evaluate and potentially store
+            metadata: Optional metadata
+            category: Optional memory category
+            source: Source of the memory
+            
+        Returns:
+            Tuple[bool, str, Optional[Memory]]: 
+                Decision (True=kept, False=skipped),
+                Reason for the decision,
+                Memory object if stored, None otherwise
         """
         ...
 

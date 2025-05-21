@@ -3,9 +3,10 @@
 import importlib
 from typing import Any, Dict, List, Optional, Type, TypeVar, Union, cast, Protocol, runtime_checkable
 
-from memuri.core.config import EmbeddingSettings, LLMSettings, VectorStoreSettings, get_settings
+from memuri.core.config import EmbeddingSettings, LLMSettings, MemuriSettings, VectorStoreSettings, get_settings
 from memuri.core.logging import get_logger
-from memuri.domain.interfaces import EmbeddingService, LLMService, MemoryService
+from memuri.domain.interfaces import ClassifierService, EmbeddingService, LLMService, MemoryService
+from memuri.services.gating import MemoryGate
 
 logger = get_logger(__name__)
 
@@ -272,4 +273,44 @@ class FeedbackServiceFactory:
             FeedbackServiceProtocol: An initialized feedback service
         """
         from memuri.services.feedback import FeedbackService
-        return FeedbackService(settings=get_settings().feedback) 
+        return FeedbackService(settings=get_settings().feedback)
+
+
+class GatingFactory:
+    """Factory for creating memory gating service instances."""
+    
+    @classmethod
+    def create(
+        cls, 
+        embedding_service: EmbeddingService,
+        memory_service: Optional[MemoryService] = None,
+        classifier_service: Optional[ClassifierService] = None,
+        settings: Optional[MemuriSettings] = None,
+        **kwargs
+    ) -> MemoryGate:
+        """Create a memory gate instance.
+        
+        Args:
+            embedding_service: Service for creating embeddings
+            memory_service: Optional service for memory operations
+            classifier_service: Optional service for classification
+            settings: Settings for the memory gate
+            **kwargs: Additional keyword arguments for initialization
+                similarity_threshold: Threshold for similarity check
+                confidence_threshold: Threshold for classifier confidence
+                min_content_length: Minimum content length to store
+                skip_words: List of words/phrases to skip
+                keep_phrases: List of words/phrases to always keep
+                max_recent_embeddings: Maximum number of recent embeddings to keep
+            
+        Returns:
+            MemoryGate: An initialized memory gate service
+        """
+        logger.debug("Creating memory gate service")
+        return MemoryGate(
+            embedding_service=embedding_service,
+            memory_service=memory_service,
+            classifier_service=classifier_service,
+            settings=settings,
+            **kwargs
+        ) 
