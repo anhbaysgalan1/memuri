@@ -1,0 +1,27 @@
+{
+  "timestamp": "2025-05-21T13:19:41.143592",
+  "test_type": "all",
+  "iterations": 10,
+  "database_url": "postgresql://memuri:memuri@localhost:5432/memuri",
+  "embedding_model": "text-embedding-3-small",
+  "tests": {
+    "add_memory": {
+      "count": 10,
+      "mean": 1021.2945461273193,
+      "median": 1126.0329484939575,
+      "min": 385.67090034484863,
+      "max": 2353.3339500427246,
+      "p95": 1906.8857312202442,
+      "std": 623.084690051152
+    },
+    "search_memory": {
+      "count": 10,
+      "mean": 1426.9195795059204,
+      "median": 1392.1295404434204,
+      "min": 478.19995880126953,
+      "max": 3077.096939086914,
+      "p95": 2452.2665858268724,
+      "std": 700.1720099837597
+    }
+  }
+}

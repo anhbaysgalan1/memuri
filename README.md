@@ -198,3 +198,31 @@ This script will:
 - Explore [API Reference](api-reference/index.md) 
 - Learn advanced patterns with [Cookbooks](cookbooks/index.md)
 - View [Examples](examples/index.md) for complete solutions
+
+## Updates and Improvements
+
+### Latest Updates (v0.2.0)
+
+We've enhanced Memuri with several key improvements:
+
+1. **Enhanced Category System**
+   - Hierarchical memory categorization with main categories and subcategories
+   - 15 main categories and 45+ subcategories for precise memory organization
+   - Backward compatibility with legacy categories
+
+2. **Improved OpenAI Embedding Support**
+   - Dynamic client configuration with proper error handling
+   - Support for all OpenAI embedding models including text-embedding-3-small/large
+   - Advanced configuration options (proxies, Azure integration, custom parameters)
+
+3. **Feedback System Enhancement**
+   - Track and analyze feedback for both categories and subcategories
+   - Improved classifier training based on user feedback
+   - Parent-child relationship awareness in memory classification
+
+4. **Configuration Flexibility**
+   - Enhanced `from_config` method for cleaner, more intuitive setup
+   - Direct parameter passing to embedding and LLM services
+   - Better factory patterns for service initialization
+
+Check the documentation for details on how to use these new features.

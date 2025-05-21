@@ -85,6 +85,98 @@ class DocumentChunk(BaseModel):
 class MemoryCategory(str, Enum):
     """Category of memory in the system."""
     
+    # Main categories
+    PROFILE_INFORMATION = "profile_information"
+    PREFERENCES = "preferences"
+    GOALS_ASPIRATIONS = "goals_aspirations"
+    ROUTINES_HABITS = "routines_habits"
+    EVENTS_APPOINTMENTS = "events_appointments"
+    PROJECTS_TASKS = "projects_tasks"
+    HEALTH_WELLNESS = "health_wellness"
+    SOCIAL_RELATIONSHIPS = "social_relationships"
+    SKILLS_KNOWLEDGE = "skills_knowledge"
+    EXPERIENCES_MEMORIES = "experiences_memories"
+    FEEDBACK_OPINIONS = "feedback_opinions"
+    FINANCIAL_INFO = "financial_info"
+    MEDIA_CONTENT = "media_content"
+    CONTEXTUAL_METADATA = "contextual_metadata"
+    
+    # Subcategories - Profile Information
+    PERSONAL_INFORMATION = "personal_information"
+    DEMOGRAPHICS = "demographics"
+    IDENTITY_TRAITS = "identity_traits"
+    PERSONAL_DETAILS = "personal_details"
+    
+    # Subcategories - Preferences
+    FAVORITE_TOPICS = "favorite_topics"
+    COMMUNICATION_STYLE = "communication_style"
+    MEDIA_PREFERENCES = "media_preferences"
+    
+    # Subcategories - Goals & Aspirations
+    CAREER_GOALS = "career_goals"
+    PERSONAL_GOALS = "personal_goals"
+    PROJECT_ASPIRATIONS = "project_aspirations"
+    
+    # Subcategories - Routines & Habits
+    DAILY_ROUTINES = "daily_routines"
+    HEALTH_HABITS = "health_habits"
+    PRODUCTIVITY_HABITS = "productivity_habits"
+    
+    # Subcategories - Events & Appointments
+    CALENDAR_EVENTS = "calendar_events"
+    MILESTONES = "milestones"
+    TRAVEL_PLANS = "travel_plans"
+    
+    # Subcategories - Projects & Tasks
+    ACTIVE_PROJECTS = "active_projects"
+    TO_DO_ITEMS = "to_do_items"
+    BACKLOG_ITEMS = "backlog_items"
+    
+    # Subcategories - Health & Wellness
+    MEDICAL_CONDITIONS = "medical_conditions"
+    DIETARY_PREFERENCES = "dietary_preferences"
+    WELLNESS_METRICS = "wellness_metrics"
+    
+    # Subcategories - Social Relationships
+    FAMILY_MEMBERS = "family_members"
+    FRIENDS_NETWORK = "friends_network"
+    PROFESSIONAL_CONTACTS = "professional_contacts"
+    
+    # Subcategories - Skills & Knowledge
+    TECHNICAL_SKILLS = "technical_skills"
+    LANGUAGES_SPOKEN = "languages_spoken"
+    CERTIFICATIONS = "certifications"
+    
+    # Subcategories - Experiences & Memories
+    TRAVEL_EXPERIENCES = "travel_experiences"
+    EDUCATIONAL_BACKGROUND = "educational_background"
+    NOTABLE_LIFE_EVENTS = "notable_life_events"
+    
+    # Subcategories - Feedback & Opinions
+    PRODUCT_FEEDBACK = "product_feedback"
+    PERSONAL_OPINIONS = "personal_opinions"
+    SUGGESTIONS = "suggestions"
+    
+    # Subcategories - Financial Info
+    BUDGET_GOALS = "budget_goals"
+    EXPENSES_LOG = "expenses_log"
+    INVESTMENT_PREFERENCES = "investment_preferences"
+    
+    # Subcategories - Media Content
+    BOOKS_READ = "books_read"
+    ARTICLES_CONSUMED = "articles_consumed"
+    MULTIMEDIA_ENGAGEMENT = "multimedia_engagement"
+    
+    # Subcategories - Contextual Metadata
+    DEVICE_INFO = "device_info"
+    SESSION_PREFERENCES = "session_preferences"
+    LOCATION_HISTORY = "location_history"
+    
+    # Miscellaneous
+    MISCELLANEOUS = "miscellaneous"
+    MISC = "misc"
+    
+    # Legacy categories for backward compatibility
     PERSONAL = "PERSONAL"
     TASK = "TASK"
     QUESTION = "QUESTION"

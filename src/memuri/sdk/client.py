@@ -98,12 +98,27 @@ class Memuri:
         settings = get_settings()
         
         # Process embedder configuration
+        embedding_service = None
         if "embedder" in config:
             embedder_config = config["embedder"]
             provider = embedder_config.get("provider")
             provider_config = embedder_config.get("config", {})
             
-            # Create embedding settings
+            # Using factory with direct kwargs is cleaner than creating EmbeddingSettings first
+            embedding_service = EmbedderFactory.create(
+                provider=provider,
+                api_key=provider_config.get("api_key"),
+                model_name=provider_config.get("model", "text-embedding-3-small"),
+                base_url=provider_config.get("base_url"),
+                embedding_dims=provider_config.get("embedding_dims"),
+                http_client_proxies=provider_config.get("http_client_proxies"),
+                azure_kwargs=provider_config.get("azure_kwargs"),
+                model_kwargs=provider_config.get("model_kwargs"),
+                credentials_json=provider_config.get("credentials_json"),
+                batch_size=provider_config.get("batch_size", 32),
+            )
+            
+            # Also update the settings for other components that might need them
             embedding_settings = EmbeddingSettings(
                 provider=provider,
                 model_name=provider_config.get("model", "text-embedding-3-small"),
@@ -114,12 +129,14 @@ class Memuri:
                 azure_kwargs=provider_config.get("azure_kwargs"),
                 model_kwargs=provider_config.get("model_kwargs"),
                 credentials_json=provider_config.get("credentials_json"),
+                batch_size=provider_config.get("batch_size", 32),
             )
             
             # Update settings
             settings.embedding = embedding_settings
         
         # Process LLM configuration if provided
+        llm_service = None
         if "llm" in config:
             llm_config = config["llm"]
             provider = llm_config.get("provider")
@@ -137,9 +154,28 @@ class Memuri:
             
             # Update settings
             settings.llm = llm_settings
+            
+            # Create LLM service directly (could also use a factory pattern as with embeddings)
+            llm_service = LlmFactory.create(provider=provider, settings=llm_settings)
         
-        # Create Memuri instance with our configured settings
-        return Memuri(settings=settings)
+        # Create vector store service if configured
+        memory_service = None
+        if "vector_store" in config:
+            vector_config = config["vector_store"]
+            provider = vector_config.get("provider")
+            
+            # Create vector store settings and service through factory
+            vector_settings = VectorStoreSettings(**vector_config)
+            settings.vector_store = vector_settings
+            memory_service = VectorStoreFactory.create(provider=provider, settings=vector_settings)
+        
+        # Create Memuri instance with configured services
+        return Memuri(
+            settings=settings,
+            embedding_service=embedding_service,
+            llm_service=llm_service,
+            memory_service=memory_service,
+        )
     
     def __init__(
         self,

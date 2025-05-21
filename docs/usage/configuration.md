@@ -369,4 +369,148 @@ from memuri import Memuri
 
 # Will read from .env file
 memory = Memuri()
+```
+
+## Memory Categories
+
+Memuri now supports a rich hierarchical category system with main categories and subcategories:
+
+```python
+# Example memory categories
+from memuri.domain.models import MemoryCategory
+
+# Main categories
+profile = MemoryCategory.PROFILE_INFORMATION
+tasks = MemoryCategory.PROJECTS_TASKS
+
+# Subcategories
+personal_info = MemoryCategory.PERSONAL_INFORMATION
+todo_items = MemoryCategory.TO_DO_ITEMS
+```
+
+The full category hierarchy includes:
+
+1. **Profile Information**
+   - Personal Information
+   - Demographics
+   - Identity Traits
+   - Personal Details
+
+2. **Preferences**
+   - Favorite Topics
+   - Communication Style
+   - Media Preferences
+
+3. **Goals & Aspirations**
+   - Career Goals
+   - Personal Goals
+   - Project Aspirations
+
+4. **Routines & Habits**
+   - Daily Routines
+   - Health Habits
+   - Productivity Habits
+
+5. **Events & Appointments**
+   - Calendar Events
+   - Milestones
+   - Travel Plans
+
+6. **Projects & Tasks**
+   - Active Projects
+   - To-Do Items
+   - Backlog Items
+
+7. **Health & Wellness**
+   - Medical Conditions
+   - Dietary Preferences
+   - Wellness Metrics
+
+8. **Social Relationships**
+   - Family Members
+   - Friends Network
+   - Professional Contacts
+
+9. **Skills & Knowledge**
+   - Technical Skills
+   - Languages Spoken
+   - Certifications
+
+10. **Experiences & Memories**
+    - Travel Experiences
+    - Educational Background
+    - Notable Life Events
+
+11. **Feedback & Opinions**
+    - Product Feedback
+    - Personal Opinions
+    - Suggestions
+
+12. **Financial Info**
+    - Budget Goals
+    - Expenses Log
+    - Investment Preferences
+
+13. **Media Content**
+    - Books Read
+    - Articles Consumed 
+    - Multimedia Engagement
+
+14. **Contextual Metadata**
+    - Device Info
+    - Session Preferences
+    - Location History
+
+15. **Miscellaneous**
+    - Misc
+
+## Enhanced OpenAI Embedding Configuration
+
+The OpenAI embedding service supports advanced configurations:
+
+```python
+config = {
+    "embedder": {
+        "provider": "openai",
+        "config": {
+            "model": "text-embedding-3-small",  # or "text-embedding-3-large", "text-embedding-ada-002"
+            "api_key": "sk-your-openai-key",    # Optional, can also use OPENAI_API_KEY env var
+            "embedding_dims": 1536,             # 1536 for text-embedding-3-small, 3072 for text-embedding-3-large
+            "batch_size": 32,                   # Process in batches for better performance
+            # Advanced configuration options
+            "base_url": "https://api.openai.com/v1",  # Optional, for custom endpoints
+            "http_client_proxies": {                  # Optional, for proxy configuration
+                "http": "http://proxy.example.com:8080",
+                "https": "https://proxy.example.com:8080"
+            },
+            "model_kwargs": {                        # Optional, additional model parameters
+                "encoding_format": "float"           # Optional, "float" (default) or "base64"
+            }
+        }
+    }
+}
+```
+
+## Feedback System
+
+Memuri includes a feedback system for improving memory classification over time:
+
+```python
+from memuri import Memuri
+from memuri.domain.models import MemoryCategory
+
+# Initialize client
+memuri = Memuri()
+
+# Add a memory that was auto-classified
+memory = await memuri.add_memory(
+    content="I need to buy milk today"
+)
+
+# If the classification was incorrect, provide feedback
+await memuri.log_feedback(
+    text="I need to buy milk today",
+    category=MemoryCategory.TO_DO_ITEMS,  # Correct category
+    metadata={"user_id": "1234"}  # Optional additional info
+)
 ``` 

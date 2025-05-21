@@ -106,13 +106,15 @@ class EmbedderFactory(ProviderFactory):
     def create(
         cls, 
         provider: Optional[str] = None, 
-        settings: Optional[EmbeddingSettings] = None
+        settings: Optional[EmbeddingSettings] = None,
+        **kwargs
     ) -> EmbeddingService:
         """Create an embedding service instance.
         
         Args:
             provider: Name of the provider, defaults to config
             settings: Embedding settings, defaults to global config
+            **kwargs: Additional settings that will override settings object values
             
         Returns:
             EmbeddingService: An initialized embedding service
@@ -120,6 +122,26 @@ class EmbedderFactory(ProviderFactory):
         # Use settings from config if not provided
         if settings is None:
             settings = get_settings().embedding
+            
+        # Apply any overrides from kwargs to settings
+        if kwargs:
+            # Create a copy of the settings to avoid modifying the original
+            settings_dict = settings.dict()
+            
+            # Update with the provided kwargs
+            for key, value in kwargs.items():
+                if hasattr(settings, key):
+                    settings_dict[key] = value
+                    
+            # Handle nested model_kwargs differently - merge rather than replace
+            if "model_kwargs" in kwargs and settings.model_kwargs:
+                settings_dict["model_kwargs"] = {
+                    **settings.model_kwargs,
+                    **kwargs["model_kwargs"]
+                }
+                
+            # Recreate settings with the updated values    
+            settings = EmbeddingSettings(**settings_dict)
         
         # Use provider from settings if not provided
         if provider is None:
@@ -129,6 +151,7 @@ class EmbedderFactory(ProviderFactory):
         provider_class = cls.get_provider_class(provider)
         
         # Create and return an instance
+        logger.debug(f"Creating embedding service for provider: {provider}")
         return provider_class(settings=settings)
 
 
