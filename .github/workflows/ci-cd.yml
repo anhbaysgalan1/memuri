@@ -8,6 +8,8 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Add this to allow pushing to the repository
     
     # Define services (containers) that will run alongside the job
     services:
