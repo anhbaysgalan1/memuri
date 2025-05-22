@@ -91,8 +91,16 @@ jobs:
           export PGDATABASE=memuri
           
           echo "Verifying vector functionality..."
-          psql -c "INSERT INTO test_vectors (data) VALUES ('[1,2,3]'::vector);"
-          psql -c "SELECT * FROM test_vectors LIMIT 1;"
+          # Create a Python script to generate a proper 1536-dimension vector
+          python -c "
+          import sys
+          vector = '[' + ','.join(['0'] * 1536) + ']'
+          sys.stdout.write(vector)
+          " > vector.txt
+          
+          # Insert the properly sized vector
+          psql -c "INSERT INTO test_vectors (data) VALUES ('$(cat vector.txt)'::vector);"
+          psql -c "SELECT id, array_length(data, 1) AS dimensions FROM test_vectors LIMIT 1;"
 
       - name: Verify Redis connection
         run: |
