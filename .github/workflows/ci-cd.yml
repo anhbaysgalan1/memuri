@@ -6,12 +6,8 @@ on:
       - main
 
 jobs:
-  build-test-publish:
+  build-and-test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write  # To allow committing and pushing version bumps
-      packages: write  # If you were publishing to GitHub Packages (not the case here, but good practice if ever needed)
-      id-token: write  # Required for PyPI trusted publishing with OpenID Connect
     
     # Define services (containers) that will run alongside the job
     services:
@@ -43,6 +39,9 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     
+    outputs:
+      new_version: ${{ steps.version_bump.outputs.new_version }}
+    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -61,7 +60,7 @@ jobs:
           virtualenvs-in-project: true
 
       - name: Cache Poetry virtualenv
-        uses: actions/cache@v3 # Using v3 as v4 is still in beta
+        uses: actions/cache@v3
         with:
           path: .venv
           key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
@@ -177,25 +176,43 @@ jobs:
           poetry version $NEXT_DEV_VERSION
           echo "new_version=$(poetry version -s)" >> $GITHUB_OUTPUT
 
-
       - name: Build Package
         if: success() && steps.tests.outcome == 'success' # Run only if tests pass
         run: poetry build
 
-      - name: Publish to PyPI
-        if: success() && steps.tests.outcome == 'success' # Run only if tests pass
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Upload Distribution Packages
+        if: success() && steps.tests.outcome == 'success'
+        uses: actions/upload-artifact@v4
         with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          skip_existing: true
+          name: dist
+          path: dist/
+          retention-days: 1
 
       - name: Commit Version Bump
-        if: success() && steps.tests.outcome == 'success' && steps.version_bump.outcome == 'success' # Run only if publish was successful (implicitly, if previous steps succeeded)
+        if: success() && steps.tests.outcome == 'success' && steps.version_bump.outcome == 'success'
         run: |
           git add pyproject.toml poetry.lock
           # Use the version output from the version_bump step
           git commit -m "Automated version bump to ${{ steps.version_bump.outputs.new_version }} [skip ci]"
           git push
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GITHUB_TOKEN is required to push to the repository
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment:
+      name: prod
+      url: https://pypi.org/p/memuri
+    permissions:
+      id-token: write  # This permission is needed for PyPI trusted publishing
+    
+    steps:
+      - name: Download Distribution Packages
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
