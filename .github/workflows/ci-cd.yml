@@ -70,11 +70,22 @@ jobs:
       - name: Install Dependencies
         run: poetry install --with dev --no-interaction --no-ansi
 
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+
+      - name: Initialize pgvector extension
+        run: |
+          # Create pgvector extension
+          PGPASSWORD=memuri psql -h localhost -U memuri -d memuri -c "CREATE EXTENSION IF NOT EXISTS vector;"
+          echo "pgvector extension created successfully"
+
       - name: Verify PostgreSQL connection
         run: |
-          # Verify the PostgreSQL connection
-          PGPASSWORD=testpassword psql -h localhost -U testuser -d testdb -c "\dt"
-          echo "PostgreSQL is ready"
+          # Verify the PostgreSQL connection using the correct user
+          PGPASSWORD=testpassword psql -h localhost -U testuser -d testdb -c "\dx"
+          echo "PostgreSQL is ready with pgvector extension"
 
       - name: Verify Redis connection
         run: |

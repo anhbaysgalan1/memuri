@@ -255,7 +255,7 @@ If you encounter issues:
 1. Verify that Postgres is running and accessible
 2. Check your API key is valid and has sufficient quota
 3. Increase log level to DEBUG for more detailed output
-4. Ensure numpy is properly installed for statistical calculations
+4. Ensure numpy is properly installed for statistical calculations 
 
 ### Required Environment Variables
 
