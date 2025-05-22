@@ -1,201 +1,138 @@
 """
-Celery tasks for embedding operations.
+Embedding tasks for Celery workers.
+
+This module provides Celery tasks for asynchronous embedding generation.
 """
-import asyncio
+
+from typing import List, Dict, Any, Optional
 import logging
-from typing import Dict, List, Optional, Union
 
-import numpy as np
-from celery import Celery
-from celery.signals import worker_process_init, worker_process_shutdown
+from celery import shared_task
+from memuri.factory import EmbedderFactory
+from memuri.core.config import get_settings
+from memuri.core.text_utils import normalize_text_for_embedding
 
-from memuri.domain.models import Document, DocumentChunk
-from memuri.factory import EmbedderFactory, VectorStoreFactory
-from memuri.core.config import settings
-
-# Configure logging
 logger = logging.getLogger(__name__)
 
-# Get Celery app from celery_app.py or create a new one
-try:
-    from memuri.workers.celery_app import app
-except ImportError:
-    # Configure Celery
-    redis_url = settings.redis_url
-    app = Celery(
-        "memuri", 
-        broker=f"{redis_url}/0",
-        backend=f"{redis_url}/1",
+
+@shared_task(
+    name="memuri.workers.embed_tasks.embed_text",
+    bind=True,
+    max_retries=3,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+)
+def embed_text(self, text: str) -> List[float]:
+    """
+    Generate an embedding for a text string.
+
+    Args:
+        text: The text to embed
+
+    Returns:
+        List[float]: The embedding vector
+    """
+    # Clean and normalize the text
+    cleaned_text = normalize_text_for_embedding(text)
+
+    # Get the settings and create the embedder
+    settings = get_settings()
+    embedding_service = EmbedderFactory.create(
+        provider=settings.embedding.provider,
+        settings=settings.embedding
     )
-    app.conf.task_serializer = "json"
-    app.conf.result_serializer = "json"
-    app.conf.accept_content = ["json"]
-    app.conf.task_routes = {
-        "memuri.workers.embed_tasks.*": {"queue": "embedding"},
-        "memuri.workers.memory_tasks.*": {"queue": "memory"},
-    }
 
-# Global state for connection pools
-embedder = None
-vector_store = None
+    # Generate the embedding
+    try:
+        result = embedding_service.embed(cleaned_text)
+        logger.info(f"Generated embedding of length {len(result)}")
+        return result
+    except Exception as e:
+        logger.error(f"Error generating embedding: {e}")
+        raise self.retry(exc=e)
 
 
-@worker_process_init.connect
-def init_worker(**kwargs):
-    """Initialize connections when worker starts."""
-    global embedder, vector_store
-    
-    # Create embedder and vector store asynchronously
-    loop = asyncio.get_event_loop()
-    
-    async def init_connections():
-        # Initialize embedder
-        embedder_factory = EmbedderFactory()
-        embedder = await embedder_factory.create(settings.embedder_provider)
-        
-        # Initialize vector store
-        vector_store_factory = VectorStoreFactory()
-        vector_store = await vector_store_factory.create(settings.vector_store_provider)
-        
-        return embedder, vector_store
-    
-    embedder, vector_store = loop.run_until_complete(init_connections())
-    logger.info("Worker initialized with embedder and vector store")
-
-
-@worker_process_shutdown.connect
-def shutdown_worker(**kwargs):
-    """Close connections when worker shuts down."""
-    global embedder, vector_store
-    
-    # Close connections asynchronously
-    loop = asyncio.get_event_loop()
-    
-    async def close_connections():
-        if embedder:
-            await embedder.close()
-        if vector_store:
-            await vector_store.close()
-    
-    loop.run_until_complete(close_connections())
-    logger.info("Worker connections closed")
-
-
-@app.task(name="memuri.workers.embed_tasks.embed_batch", rate_limit="100/m")
-def embed_batch(items: List[Dict], batch_size: int = 32) -> List[str]:
-    """Embed a batch of items and store in vector store.
-    
-    Args:
-        items: List of document dictionaries to embed
-        batch_size: Number of documents to embed at once
-        
-    Returns:
-        List of document IDs that were processed
+@shared_task(
+    name="memuri.workers.embed_tasks.embed_batch",
+    bind=True,
+    max_retries=3,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+)
+def embed_batch(self, texts: List[str]) -> List[List[float]]:
     """
-    global embedder, vector_store
-    
-    if not embedder or not vector_store:
-        logger.error("Embedder or vector store not initialized")
-        raise RuntimeError("Embedder or vector store not initialized")
-    
-    # Convert dictionaries to Document/DocumentChunk objects
-    documents = []
-    for item in items:
-        if "document_id" in item:
-            # It's a document chunk
-            documents.append(DocumentChunk(
-                document_id=item["document_id"],
-                id=item["id"],
-                content=item["content"],
-                metadata=item.get("metadata", {})
-            ))
-        else:
-            # It's a full document
-            documents.append(Document(
-                id=item["id"],
-                content=item["content"],
-                metadata=item.get("metadata", {})
-            ))
-    
-    # Run the embedding and storage asynchronously
-    loop = asyncio.get_event_loop()
-    
-    async def process_batch():
-        # Embed the documents
-        for i in range(0, len(documents), batch_size):
-            batch = documents[i:i + batch_size]
-            
-            # Get the content for embedding
-            texts = [doc.content for doc in batch]
-            
-            # Generate embeddings
-            embeddings = await embedder.embed_batch(texts)
-            
-            # Update documents with embeddings
-            for j, doc in enumerate(batch):
-                doc.embedding = embeddings[j]
-            
-            # Store in vector database
-            await vector_store.add(batch)
-            
-            logger.info(f"Embedded and stored batch of {len(batch)} documents")
-        
-        # Return the document IDs
-        return [doc.id if isinstance(doc, Document) else doc.document_id for doc in documents]
-    
-    return loop.run_until_complete(process_batch())
+    Generate embeddings for a batch of text strings.
+
+    Args:
+        texts: List of text strings to embed
+
+    Returns:
+        List[List[float]]: List of embedding vectors
+    """
+    # Clean and normalize the texts
+    cleaned_texts = [normalize_text_for_embedding(text) for text in texts]
+
+    # Get the settings and create the embedder
+    settings = get_settings()
+    embedding_service = EmbedderFactory.create(
+        provider=settings.embedding.provider,
+        settings=settings.embedding
+    )
+
+    # Generate the embeddings
+    try:
+        results = embedding_service.embed_batch(cleaned_texts)
+        logger.info(f"Generated {len(results)} embeddings")
+        return results
+    except Exception as e:
+        logger.error(f"Error generating batch embeddings: {e}")
+        raise self.retry(exc=e)
 
 
-@app.task(name="memuri.workers.embed_tasks.embed_document", rate_limit="100/m")
+@shared_task(
+    name="memuri.workers.embed_tasks.embed_document",
+    bind=True,
+    max_retries=3,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+)
 def embed_document(
-    content: str, 
-    document_id: str, 
-    chunk_id: Optional[str] = None,
-    metadata: Optional[Dict] = None,
-) -> str:
-    """Embed a single document and store in vector store.
-    
-    Args:
-        content: Text content to embed
-        document_id: Document ID
-        chunk_id: Optional chunk ID (if it's a document chunk)
-        metadata: Optional metadata
-        
-    Returns:
-        Document ID
+    self,
+    document: Dict[str, Any],
+    text_field: str = "content",
+    metadata_fields: Optional[List[str]] = None,
+) -> Dict[str, Any]:
     """
-    global embedder, vector_store
+    Generate an embedding for a document and store it in the document.
+
+    Args:
+        document: Document dictionary with content
+        text_field: Key for the text content in the document
+        metadata_fields: Optional keys for metadata to include in embedding text
+
+    Returns:
+        Dict[str, Any]: Document with added embedding field
+    """
+    # Extract text from document
+    text = document.get(text_field, "")
     
-    if not embedder or not vector_store:
-        logger.error("Embedder or vector store not initialized")
-        raise RuntimeError("Embedder or vector store not initialized")
+    # Optionally add metadata fields to the text
+    if metadata_fields:
+        for field in metadata_fields:
+            if field in document and field != text_field:
+                field_value = document.get(field)
+                if field_value:
+                    text += f" {field}: {field_value}"
+
+    # Generate embedding
+    embedding = embed_text.apply(args=[text]).get()
     
-    # Create document object
-    if chunk_id:
-        doc = DocumentChunk(
-            document_id=document_id,
-            id=chunk_id,
-            content=content,
-            metadata=metadata or {}
-        )
-    else:
-        doc = Document(
-            id=document_id,
-            content=content,
-            metadata=metadata or {}
-        )
-    
-    # Run the embedding and storage asynchronously
-    loop = asyncio.get_event_loop()
-    
-    async def process_document():
-        # Generate embedding
-        embedding = await embedder.embed(content)
-        doc.embedding = embedding
-        
-        # Store in vector database
-        await vector_store.add([doc])
-        
-        return document_id
-    
-    return loop.run_until_complete(process_document()) 
+    # Add embedding to document
+    document["embedding"] = embedding
+    return document 

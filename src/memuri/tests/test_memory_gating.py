@@ -3,11 +3,9 @@
 import asyncio
 import pytest
 import os
-from typing import Dict, List, Optional
 import uuid
 
-from memuri.domain.models import Memory, MemoryCategory, MemorySource, SearchQuery
-from memuri.services.gating import MemoryGate
+from memuri.domain.models import MemorySource, SearchQuery
 from memuri.factory import EmbedderFactory, ClassifierFactory, GatingFactory, VectorStoreFactory
 from memuri.services.memory import MemoryOrchestrator
 from memuri.core.config import get_settings
@@ -27,7 +25,7 @@ async def create_real_memory_gate():
     global memory_service, embedding_service, classifier_service
     
     # Skip if no LLM API key for CI/CD
-    api_key = os.environ.get("MEMURI_LLM_API_KEY")
+    api_key = os.environ.get("MEMURI_LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if not api_key:
         pytest.skip("LLM API key not available")
     
@@ -77,7 +75,7 @@ async def create_real_memory_gate():
 async def test_memory_gate_basic_rules():
     """Test that the basic rules filter works."""
     # Skip if no LLM API key for CI/CD
-    if not os.environ.get("MEMURI_LLM_API_KEY"):
+    if not os.environ.get("MEMURI_LLM_API_KEY") and not os.environ.get("OPENAI_API_KEY"):
         pytest.skip("LLM API key not available")
     
     memory_gate = await create_real_memory_gate()
@@ -93,7 +91,9 @@ async def test_memory_gate_basic_rules():
     assert "basic rules" in reason.lower()
     
     # Test text that passes basic rules
-    should_store, reason = await memory_gate.evaluate("This is a sufficiently long text that should pass the basic rules")
+    should_store, reason = await memory_gate.evaluate(
+        "This is a sufficiently long text that should pass the basic rules"
+    )
     assert should_store
 
 
@@ -101,7 +101,7 @@ async def test_memory_gate_basic_rules():
 async def test_memory_gate_keep_phrases():
     """Test that keep phrases override other filters."""
     # Skip if no LLM API key for CI/CD
-    if not os.environ.get("MEMURI_LLM_API_KEY"):
+    if not os.environ.get("MEMURI_LLM_API_KEY") and not os.environ.get("OPENAI_API_KEY"):
         pytest.skip("LLM API key not available")
     
     memory_gate = await create_real_memory_gate()
@@ -117,7 +117,7 @@ async def test_memory_gate_keep_phrases():
 async def test_memory_gate_similarity():
     """Test that similar texts are filtered."""
     # Skip if no LLM API key for CI/CD
-    if not os.environ.get("MEMURI_LLM_API_KEY"):
+    if not os.environ.get("MEMURI_LLM_API_KEY") and not os.environ.get("OPENAI_API_KEY"):
         pytest.skip("LLM API key not available")
     
     memory_gate = await create_real_memory_gate()
@@ -143,7 +143,7 @@ async def test_memory_gate_similarity():
 async def test_orchestrator_with_memory_gate():
     """Test memory gating with the MemoryOrchestrator."""
     # Skip if no LLM API key for CI/CD
-    if not os.environ.get("MEMURI_LLM_API_KEY"):
+    if not os.environ.get("MEMURI_LLM_API_KEY") and not os.environ.get("OPENAI_API_KEY"):
         pytest.skip("LLM API key not available")
     
     # Reuse existing services
@@ -200,7 +200,7 @@ async def test_orchestrator_with_memory_gate():
 async def test_personal_information_storage():
     """Test that personal information is properly stored."""
     # Skip if no LLM API key for CI/CD
-    if not os.environ.get("MEMURI_LLM_API_KEY"):
+    if not os.environ.get("MEMURI_LLM_API_KEY") and not os.environ.get("OPENAI_API_KEY"):
         pytest.skip("LLM API key not available")
     
     memory_gate = await create_real_memory_gate()
@@ -249,9 +249,7 @@ async def test_personal_information_storage():
         query=f"Anhaa {test_id}",
         top_k=10,
     )
-    
     results = await memory_service.search(query)
-    
     # We should find at least some of our stored memories
     assert len(results.memories) > 0, "Failed to retrieve any personal information"
     
@@ -269,7 +267,7 @@ async def test_personal_information_storage():
 async def test_real_conversation_flow():
     """Test memory gating with a realistic conversation flow using real PGVector."""
     # Skip if no LLM API key for CI/CD
-    if not os.environ.get("MEMURI_LLM_API_KEY"):
+    if not os.environ.get("MEMURI_LLM_API_KEY") and not os.environ.get("OPENAI_API_KEY"):
         pytest.skip("LLM API key not available")
     
     memory_gate = await create_real_memory_gate()
@@ -351,7 +349,10 @@ async def test_real_conversation_flow():
             stored_memories.append(memory)
         
         # Verify against expected decision
-        assert stored == expected_decisions[i], f"Message {i} ({message}) expected {expected_decisions[i]} but got {stored}. Reason: {reason}"
+        assert stored == expected_decisions[i], (
+            f"Message {i} ({message}) expected {expected_decisions[i]} but got {stored}. "
+            f"Reason: {reason}"
+        )
     
     # Verify the total number of stored memories
     assert stored_count == sum(expected_decisions)

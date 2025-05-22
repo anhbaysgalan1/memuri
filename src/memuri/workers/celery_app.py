@@ -1,63 +1,60 @@
 """
-Celery application configuration.
+Celery worker configuration for Memuri.
+
+This module sets up the Celery application for background tasks processing.
 """
+
 from celery import Celery
-from celery.schedules import crontab
+import os
 
-from memuri.core.config import settings
+# Set up logging
+import logging
+logger = logging.getLogger(__name__)
 
-# Configure Celery
-redis_url = settings.redis_url
-app = Celery(
-    "memuri", 
-    broker=f"{redis_url}/0",  # Use database 0 as broker
-    backend=f"{redis_url}/1",  # Use database 1 as result backend
+# Create Celery instance
+app = Celery('memuri')
+
+# Load configuration from environment variables with CELERY_ prefix
+app.conf.update(
+    broker_url=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'),
+    result_backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'),
+    task_serializer='json',
+    accept_content=['json'],
+    result_serializer='json',
+    enable_utc=True,
+    task_acks_late=True,
+    worker_prefetch_multiplier=1,
+    task_track_started=True,
+    task_time_limit=600,  # 10 minutes
+    task_soft_time_limit=300,  # 5 minutes
+    worker_max_tasks_per_child=200,
+    worker_concurrency=4,
 )
 
-# Configure serialization
-app.conf.task_serializer = "json"
-app.conf.result_serializer = "json"
-app.conf.accept_content = ["json"]
+# Include task modules
+app.autodiscover_tasks(['memuri.workers'], force=True)
 
-# Configure task routes
+# Optional task routes configuration
 app.conf.task_routes = {
-    "memuri.workers.embed_tasks.*": {"queue": "embedding"},
-    "memuri.workers.memory_tasks.*": {"queue": "memory"},
+    'memuri.workers.embed_tasks.*': {'queue': 'embed'},
+    'memuri.workers.memory_tasks.*': {'queue': 'memory'},
 }
 
-# Configure periodic tasks
-app.conf.beat_schedule = {
-    # Clean up memories daily at 3 AM
-    "cleanup-old-memories": {
-        "task": "memuri.workers.memory_tasks.cleanup_memories",
-        "schedule": crontab(hour=3, minute=0),  # Run at 3:00 AM
-        "args": (90, 10000, ["IMPORTANT", "DECISION"]),  # Keep important memories
+# Optional task queues configuration
+app.conf.task_queues = {
+    'embed': {
+        'exchange': 'embed',
+        'routing_key': 'embed',
     },
-    
-    # Update feedback classifier every 4 hours
-    "update-feedback-classifier": {
-        "task": "memuri.workers.memory_tasks.update_feedback_classifier",
-        "schedule": crontab(minute=0, hour="*/4"),  # Run every 4 hours
+    'memory': {
+        'exchange': 'memory',
+        'routing_key': 'memory',
     },
 }
 
-# Set prefetch multiplier (how many tasks a worker prefetches)
-app.conf.worker_prefetch_multiplier = 4
 
-# Set concurrency (default number of worker processes)
-app.conf.worker_concurrency = 4
-
-# Set task time limit (in seconds)
-app.conf.task_time_limit = 300  # 5 minutes
-
-# Set soft time limit (in seconds)
-app.conf.task_soft_time_limit = 240  # 4 minutes
-
-# Set task rate limits
-app.conf.task_annotations = {
-    "memuri.workers.embed_tasks.embed_batch": {"rate_limit": "100/m"},
-    "memuri.workers.embed_tasks.embed_document": {"rate_limit": "100/m"},
-}
-
-# Configure Celery logging
-app.conf.worker_hijack_root_logger = False 
+@app.task(bind=True)
+def debug_task(self):
+    """Debug task to test Celery worker."""
+    logger.info(f"Request: {self.request!r}")
+    return "Debug task executed successfully"

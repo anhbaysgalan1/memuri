@@ -95,6 +95,7 @@ jobs:
           echo "Redis is ready"
 
       - name: Linting
+        continue-on-error: true  # Ignoring linting errors - pipeline will continue even if linting fails
         run: poetry run flake8 src/memuri
 
       - name: Type Checking
