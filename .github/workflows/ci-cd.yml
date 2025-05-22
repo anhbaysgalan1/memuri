@@ -11,6 +11,7 @@ jobs:
     permissions:
       contents: write  # To allow committing and pushing version bumps
       packages: write  # If you were publishing to GitHub Packages (not the case here, but good practice if ever needed)
+      id-token: write  # Required for PyPI trusted publishing with OpenID Connect
     
     # Define services (containers) that will run alongside the job
     services:
