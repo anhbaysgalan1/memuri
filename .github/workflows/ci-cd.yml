@@ -18,9 +18,9 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg17
         env:
-          POSTGRES_USER: testuser
-          POSTGRES_PASSWORD: testpassword
-          POSTGRES_DB: testdb
+          POSTGRES_USER: memuri
+          POSTGRES_PASSWORD: memuri
+          POSTGRES_DB: memuri
         ports:
           - 5432:5432
         # Health check to wait until postgres has started
@@ -70,10 +70,11 @@ jobs:
       - name: Install Dependencies
         run: poetry install --with dev --no-interaction --no-ansi
 
-      - name: Install PostgreSQL client
+      - name: Install PostgreSQL and Redis clients
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y postgresql-client redis-tools
+          echo "PostgreSQL and Redis clients installed"
 
       - name: Initialize pgvector extension
         run: |
@@ -84,7 +85,7 @@ jobs:
       - name: Verify PostgreSQL connection
         run: |
           # Verify the PostgreSQL connection using the correct user
-          PGPASSWORD=testpassword psql -h localhost -U testuser -d testdb -c "\dx"
+          PGPASSWORD=memuri psql -h localhost -U memuri -d memuri -c "\dx"
           echo "PostgreSQL is ready with pgvector extension"
 
       - name: Verify Redis connection
@@ -104,11 +105,11 @@ jobs:
         run: poetry run pytest --cov=memuri
         env:
           # Updated to use standardized environment variables (single underscore format)
-          MEMURI_DATABASE_POSTGRES_URL: postgresql://testuser:testpassword@localhost:5432/testdb
+          MEMURI_DATABASE_POSTGRES_URL: postgresql://memuri:memuri@localhost:5432/memuri
           MEMURI_REDIS_REDIS_URL: redis://localhost:6379/0
           MEMURI_VECTOR_STORE_PROVIDER: pgvector
           MEMURI_VECTOR_STORE_DIMENSION: 1536
-          MEMURI_VECTOR_STORE_CONNECTION_STRING: postgresql://testuser:testpassword@localhost:5432/testdb
+          MEMURI_VECTOR_STORE_CONNECTION_STRING: postgresql://memuri:memuri@localhost:5432/memuri
           MEMURI_VECTOR_STORE_COLLECTION_NAME: test_memories
           MEMURI_LLM_API_KEY: ${{ secrets.MEMURI_LLM_API_KEY }}
           MEMURI_EMBEDDING_API_KEY: ${{ secrets.MEMURI_LLM_API_KEY }}
