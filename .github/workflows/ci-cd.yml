@@ -76,23 +76,43 @@ jobs:
           sudo apt-get install -y postgresql-client redis-tools
           echo "PostgreSQL and Redis clients installed"
 
-      - name: Initialize pgvector extension
+      - name: Initialize Database
         run: |
-          # Create pgvector extension
-          PGPASSWORD=memuri psql -h localhost -U memuri -d memuri -c "CREATE EXTENSION IF NOT EXISTS vector;"
-          echo "pgvector extension created successfully"
-
-      - name: Verify PostgreSQL connection
-        run: |
-          # Verify the PostgreSQL connection using the correct user
-          PGPASSWORD=memuri psql -h localhost -U memuri -d memuri -c "\dx"
-          echo "PostgreSQL is ready with pgvector extension"
+          # Make db-init.sh executable
+          chmod +x .github/workflows/db-init.sh
+          
+          # Run the database initialization script
+          .github/workflows/db-init.sh
+          
+          # Verify everything is working
+          export PGUSER=memuri
+          export PGPASSWORD=memuri
+          export PGHOST=localhost
+          export PGDATABASE=memuri
+          
+          echo "Verifying vector functionality..."
+          psql -c "INSERT INTO test_vectors (data) VALUES ('[1,2,3]'::vector);"
+          psql -c "SELECT * FROM test_vectors LIMIT 1;"
 
       - name: Verify Redis connection
         run: |
           # Verify the Redis connection
           redis-cli ping
           echo "Redis is ready"
+
+      - name: Export database connection environment variables
+        run: |
+          # Ensure environment variables are consistently available to all commands
+          echo "MEMURI_DATABASE_POSTGRES_URL=postgresql://memuri:memuri@localhost:5432/memuri" >> $GITHUB_ENV
+          echo "MEMURI_REDIS_REDIS_URL=redis://localhost:6379/0" >> $GITHUB_ENV
+          echo "MEMURI_VECTOR_STORE_PROVIDER=pgvector" >> $GITHUB_ENV
+          echo "MEMURI_VECTOR_STORE_DIMENSION=1536" >> $GITHUB_ENV
+          echo "MEMURI_VECTOR_STORE_CONNECTION_STRING=postgresql://memuri:memuri@localhost:5432/memuri" >> $GITHUB_ENV
+          echo "MEMURI_VECTOR_STORE_COLLECTION_NAME=test_memories" >> $GITHUB_ENV
+          echo "PGUSER=memuri" >> $GITHUB_ENV
+          echo "PGPASSWORD=memuri" >> $GITHUB_ENV
+          echo "PGHOST=localhost" >> $GITHUB_ENV
+          echo "PGDATABASE=memuri" >> $GITHUB_ENV
 
       - name: Linting
         continue-on-error: true  # Ignoring linting errors - pipeline will continue even if linting fails
@@ -116,6 +136,11 @@ jobs:
           MEMURI_EMBEDDING_API_KEY: ${{ secrets.MEMURI_LLM_API_KEY }}
           MEMURI_EMBEDDING_PROVIDER: openai
           MEMURI_EMBEDDING_MODEL_NAME: text-embedding-3-small
+          # Add standard PostgreSQL environment variables
+          PGUSER: memuri
+          PGPASSWORD: memuri
+          PGHOST: localhost
+          PGDATABASE: memuri
 
       - name: Configure Git User
         if: success() && steps.tests.outcome == 'success' # Run only if tests pass
